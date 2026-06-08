@@ -1,0 +1,26 @@
+# JARVIS desktop — required packages
+google-genai
+SpeechRecognition
+pyaudio
+psutil
+Pillow
+requests
+beautifulsoup4
+playwright
+pygame; platform_system == "Windows"
+pyttsx3; platform_system == "Windows"
+pyperclip; platform_system == "Windows"
+pyautogui; platform_system == "Windows"
+pywin32; platform_system == "Windows"
+pytesseract; platform_system == "Windows"
+winotify; platform_system == "Windows"
+msal; platform_system == "Windows"
+google-api-python-client; platform_system == "Windows"
+google-auth-httplib2; platform_system == "Windows"
+google-auth-oauthlib; platform_system == "Windows"
+foundry-local-sdk-winml; platform_system == "Windows"
+mcp[cli]
+pvporcupine; platform_system == "Windows"
+vosk; platform_system == "Windows"
+sounddevice; platform_system == "Windows"
+pynput; platform_system == "Windows"

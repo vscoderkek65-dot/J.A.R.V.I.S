@@ -1,0 +1,22 @@
+{
+  "id": "outlook",
+  "name": "Outlook MCP",
+  "description": "Outlook/Microsoft Graph MCP baglantisi icin kapali-varsayilan manifest.",
+  "version": "1.0.0",
+  "permissions": ["external", "read", "write", "delete", "send"],
+  "risk_level": "execute",
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "transport": {"type": "string", "enum": ["stdio", "streamable_http"]},
+      "command": {"type": "string"},
+      "args": {"type": "array"},
+      "url": {"type": "string"},
+      "headers": {"type": "object"},
+      "client_id": {"type": "string"},
+      "tenant_id": {"type": "string"}
+    }
+  },
+  "mcp": {},
+  "tools": []
+}

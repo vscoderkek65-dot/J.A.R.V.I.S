@@ -1,0 +1,21 @@
+{
+  "id": "filesystem",
+  "name": "Filesystem MCP",
+  "description": "Dosya sistemi MCP server baglantisi icin kapali-varsayilan manifest.",
+  "version": "1.0.0",
+  "permissions": ["read", "write", "delete", "execute"],
+  "risk_level": "execute",
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "transport": {"type": "string", "enum": ["stdio", "streamable_http"]},
+      "command": {"type": "string", "secret": false},
+      "args": {"type": "array"},
+      "url": {"type": "string"},
+      "env": {"type": "object"},
+      "headers": {"type": "object"}
+    }
+  },
+  "mcp": {},
+  "tools": []
+}

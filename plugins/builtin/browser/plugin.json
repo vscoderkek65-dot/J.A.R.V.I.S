@@ -1,0 +1,20 @@
+{
+  "id": "browser",
+  "name": "Browser MCP",
+  "description": "Tarayici otomasyonu MCP server baglantisi icin kapali-varsayilan manifest.",
+  "version": "1.0.0",
+  "permissions": ["external", "read", "execute", "send"],
+  "risk_level": "execute",
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "transport": {"type": "string", "enum": ["stdio", "streamable_http"]},
+      "command": {"type": "string"},
+      "args": {"type": "array"},
+      "url": {"type": "string"},
+      "headers": {"type": "object"}
+    }
+  },
+  "mcp": {},
+  "tools": []
+}
