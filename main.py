@@ -527,13 +527,13 @@ TOOL_DECLARATIONS = [
     },
     {
         "name": "shell_run",
-        "description": "Windows/macOS terminal komutu calistirir. Guvenlik nedeniyle riskli dosya/yetki komutlarini engeller.",
+        "description": "Dar kapsamli, salt-okuma terminal yardimcisi. Sadece allowlist komutlari calisir; dosya degistiren veya belirsiz komutlar reddedilir ve onay bekler.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "command": {
                     "type": "STRING",
-                    "description": "Calistirilacak terminal komutu"
+                    "description": "Salt-okuma allowlist komutu. Ornek: dir ., type requirements.txt, git status, python --version"
                 }
             },
             "required": ["command"]

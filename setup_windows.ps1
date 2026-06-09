@@ -76,22 +76,37 @@ try {
 } catch {
     Write-Host ""
     Write-Host "Paket kurulumu tamamlanamadi." -ForegroundColor Red
-    Write-Host "PyAudio hatasi gorurseniz once Microsoft C++ Build Tools kurulu oldugunu ve Python surumunuz icin PyAudio wheel'i bulundugunu kontrol edin."
+    Write-Host "Core paketler kurulmadan JARVIS baslatilamaz. Python surumunu ve ag baglantisini kontrol edin."
     Write-Host "Ardindan su komutu tekrar calistirin:"
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\setup_windows.ps1"
     throw
 }
 
+Write-Host "Opsiyonel mikrofon/PyAudio kurulumu deneniyor..."
+try {
+    & $venvPython -m pip install -r requirements-voice.txt
+    Write-Host "PyAudio kuruldu; mikrofon modu denenebilir." -ForegroundColor Green
+} catch {
+    Write-Host ""
+    Write-Host "PyAudio kurulamadı; bu bloklayici degil." -ForegroundColor Yellow
+    Write-Host "JARVIS text-mode ve yazili komutlarla calisir. Mikrofon icin:"
+    Write-Host "  - Windows Ses Ayarlari > Giris cihazi dogru mu kontrol et"
+    Write-Host "  - Python surumune uygun PyAudio wheel veya Microsoft C++ Build Tools kur"
+    Write-Host "  - Sonra: .\venv\Scripts\python.exe -m pip install -r requirements-voice.txt"
+}
+
 Write-Host ""
 Write-Host "Kurulum tamamlandi." -ForegroundColor Green
-Write-Host "Gorunur tarayici otomasyonu icin Playwright Chromium kurulumu gerekebilir:"
+Write-Host ""
+Write-Host "Opsiyonel ozellik notlari:"
+Write-Host "- Gorunur tarayici otomasyonu icin Playwright Chromium kurulumu gerekebilir:"
 Write-Host "  .\venv\Scripts\python.exe -m playwright install chromium"
-Write-Host "Yerel AI icin Microsoft Foundry Local ilk testte model ve execution provider indirebilir."
+Write-Host "- Yerel AI icin Microsoft Foundry Local ilk testte model ve execution provider indirebilir."
 Write-Host "  JARVIS > API Ayarlari > Model Mode: Local/Hybrid > Local test et"
 Write-Host "  Manuel OpenAI-compatible local endpoint kullanacaksan local URL ve modeli ayarlardan gir."
-Write-Host "Ses deneyimi: PTT Ctrl+Space ile calisir. Wake word icin ayarlardan Porcupine AccessKey veya Vosk model yolu girin."
+Write-Host "- Ses deneyimi: PTT Ctrl+Space ile calisir. Wake word icin ayarlardan Porcupine AccessKey veya Vosk model yolu girin."
 Write-Host "  Mikrofon/PyAudio sorununda JARVIS text mode'a duser; uygulama kapanmaz."
-Write-Host "OCR icin istege bagli Tesseract kurulumu gerekir. Kurulu degilse ekran analizi vision ile devam eder, OCR notu uyarir."
+Write-Host "- OCR icin istege bagli Tesseract kurulumu gerekir. Kurulu degilse ekran analizi vision ile devam eder, OCR notu uyarir."
 Write-Host "  winget install UB-Mannheim.TesseractOCR"
 Write-Host "Baslatmak icin:"
 Write-Host "  powershell -ExecutionPolicy Bypass -File .\run_windows.ps1"

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create venv and install dependencies
+        shell: pwsh
+        run: |
+          python -m venv venv
+          .\venv\Scripts\python.exe -m pip install --upgrade pip
+          .\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+      - name: Acceptance gate
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\test_acceptance.ps1
+
+      - name: Dependency audit
+        shell: pwsh
+        run: |
+          .\venv\Scripts\python.exe -m pip install pip-audit
+          .\venv\Scripts\python.exe -m pip_audit -r requirements.txt

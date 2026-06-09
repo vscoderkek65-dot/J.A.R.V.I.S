@@ -1,7 +1,6 @@
 # JARVIS desktop — required packages
 google-genai
 SpeechRecognition
-pyaudio
 psutil
 Pillow
 requests

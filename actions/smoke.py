@@ -91,65 +91,74 @@ def _dispatch_written_command(ui: Any, jarvis: Any, text: str = "hafiza durumu",
     return str(holder.get("result") or "Yazili komut gonderildi.")
 
 
-def _classify_step(name: str, output: str) -> tuple[str, str]:
+def _classify_step(name: str, output: str) -> tuple[str, str, str]:
     folded = str(output or "").casefold()
     if name == "ui_open":
-        return ("pass", "UI aktif") if "aktif" in folded else ("fail", "UI aktif degil")
+        return ("pass", "UI aktif", "ui_open") if "aktif" in folded else ("fail", "UI aktif degil", "ui_missing")
     if name == "written_command":
         if "zaman asimi" in folded or "callback'i yok" in folded:
-            return "fail", "Yazili komut callback'i calismadi"
-        return "pass", "Yazili komut UI akisine gonderildi"
+            return "fail", "Yazili komut callback'i calismadi", "written_command_unavailable"
+        return "pass", "Yazili komut UI akisine gonderildi", "written_command_ok"
     if name == "web_research":
+        has_answer = "kisa cevap" in folded or "kısa cevap" in folded
+        has_source = "kaynak:" in folded or "kaynaklar" in folded or "http://" in folded or "https://" in folded
+        if has_answer and has_source:
+            return "pass", "Web arastirma kaynakli cevap dondurdu", "web_research_ok"
         if "okunabilir ve alakali kaynak bulamadim" in folded or "internet baglantisi yok" in folded:
-            return "degraded", "Web arastirma calisti ama okunabilir kaynak bulamadi"
-        if "hata" in folded or "error" in folded:
-            return "degraded", "Web arastirma uyari/hata dondurdu"
-        return "pass", "Web arastirma cevap dondurdu"
+            return "degraded", "Web arastirma calisti ama okunabilir kaynak bulamadi", "web_research_no_sources"
+        if "traceback" in folded or "exception" in folded or "runtimeerror" in folded:
+            return "degraded", "Web arastirma uyari/hata dondurdu", "web_research_warning"
+        return "pass", "Web arastirma cevap dondurdu", "web_research_response"
     if name == "file_read":
         if "icerigi:" in folded or "içerigi:" in folded or "içeriği:" in folded:
-            return "pass", "Dosya okundu"
-        return "fail", "Dosya okuma beklenen icerigi dondurmedi"
+            return "pass", "Dosya okundu", "file_read_ok"
+        return "fail", "Dosya okuma beklenen icerigi dondurmedi", "file_read_unexpected_output"
     if name == "app_launch":
         if any(marker in folded for marker in ("bulunamadi", "acilamadi", "hata", "error")):
-            return "fail", "Uygulama acilamadi"
-        return "pass", "Uygulama acma denemesi basarili"
+            return "fail", "Uygulama acilamadi", "app_launch_failed"
+        return "pass", "Uygulama acma denemesi basarili", "app_launch_ok"
     if name == "screen_analysis":
         degraded_markers = (
             "api anahtari eksik",
-            "izin",
-            "permission",
-            "alinamadi",
-            "alınamadı",
-            "bulunamadi",
+            "api key missing",
+            "permission denied",
+            "izin verilmedi",
+            "ekran goruntusu alinamadi",
+            "ekran görüntüsü alınamadı",
+            "aktif pencere alinamadi",
+            "aktif pencere alınamadı",
+            "pywin32 bulunamadi",
+            "pywin32 bulunamadı",
             "vision analizi tamamlanamadi",
-            "pywin32",
         )
         if any(marker in folded for marker in degraded_markers):
-            return "degraded", "Ekran analizi ortam/API/izin nedeniyle sinirli"
-        return "pass", "Ekran analizi sonuc dondurdu"
+            return "degraded", "Ekran analizi ortam/API/izin nedeniyle sinirli", "screen_analysis_limited"
+        return "pass", "Ekran analizi sonuc dondurdu", "screen_analysis_ok"
     if name == "tts_text_mode":
         if "voice_missing" in folded or "tts_degraded" in folded:
-            return "degraded", "TTS motoru/sesi yok; text-mode fallback kabul edildi"
-        return "pass", "TTS denemesi tamamlandi"
-    return "pass", "Adim tamamlandi"
+            return "degraded", "TTS motoru/sesi yok; text-mode fallback kabul edildi", "tts_voice_missing"
+        return "pass", "TTS denemesi tamamlandi", "tts_ok"
+    return "pass", "Adim tamamlandi", "step_ok"
 
 
 def _step(name: str, action: Callable[[], str]) -> dict[str, Any]:
     started = time.perf_counter()
     try:
         output = str(action() or "")
-        status, detail = _classify_step(name, output)
+        status, detail, reason_code = _classify_step(name, output)
         error = ""
     except Exception as exc:
         output = ""
         status = "fail"
         detail = "Adim exception ile durdu"
+        reason_code = "step_exception"
         error = f"{type(exc).__name__}: {exc}"
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     return {
         "name": name,
         "status": status,
         "detail": detail,
+        "reason_code": reason_code,
         "duration_ms": elapsed_ms,
         "output": _shorten(output),
         "error": error,
@@ -272,6 +281,7 @@ def build_timeout_report(timeout_seconds: int | float, report_dir: str | Path = 
                 "name": "timeout",
                 "status": "fail",
                 "detail": f"Smoke modu {timeout_seconds} saniyede tamamlanamadi.",
+                "reason_code": "smoke_timeout",
                 "duration_ms": 0,
                 "output": "",
                 "error": "timeout",

@@ -1,0 +1,2 @@
+# Optional microphone backend. JARVIS works in text mode when this fails.
+pyaudio

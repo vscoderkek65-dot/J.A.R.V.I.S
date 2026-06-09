@@ -67,6 +67,7 @@ class WindowsSmokeTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "pass")
         self.assertEqual(saved["status"], "pass")
+        self.assertTrue(all("reason_code" in step for step in report["steps"]))
         self.assertTrue(any("SMOKE PASS" in line for line in ui.logs))
         self.assertEqual(jarvis.commands, ["hafiza durumu"])
 
@@ -89,8 +90,32 @@ class WindowsSmokeTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "degraded")
         statuses = {step["name"]: step["status"] for step in report["steps"]}
+        reasons = {step["name"]: step["reason_code"] for step in report["steps"]}
         self.assertEqual(statuses["screen_analysis"], "degraded")
         self.assertEqual(statuses["tts_text_mode"], "degraded")
+        self.assertEqual(reasons["screen_analysis"], "screen_analysis_limited")
+        self.assertEqual(reasons["tts_text_mode"], "tts_voice_missing")
+
+    def test_web_research_with_source_is_not_degraded_by_warning_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = run_smoke_sequence(
+                ui=FakeUI(),
+                jarvis=FakeJarvis(),
+                report_dir=tmp,
+                helpers={
+                    "web_research": lambda **_kwargs: "Kisa cevap:\nOk.\n\nKaynaklar:\nKaynak: https://example.com\nArama notlari: hata kelimesi kaynak notunda gecebilir",
+                    "read_text_file": lambda **_kwargs: "test_acceptance.ps1 icerigi:\nok",
+                    "open_app": lambda _app: "explorer acildi.",
+                    "analyze_screen": lambda _query: "[Aktif pencere]\nok",
+                    "speak_text": lambda *_args, **_kwargs: None,
+                    "get_available_voices": lambda: ["Turkish"],
+                },
+            )
+
+        statuses = {step["name"]: step["status"] for step in report["steps"]}
+        reasons = {step["name"]: step["reason_code"] for step in report["steps"]}
+        self.assertEqual(statuses["web_research"], "pass")
+        self.assertEqual(reasons["web_research"], "web_research_ok")
 
     def test_smoke_report_sanitizes_secret_values(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -119,6 +144,7 @@ class WindowsSmokeTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "fail")
         self.assertEqual(report["reason"], "timeout")
+        self.assertEqual(report["steps"][0]["reason_code"], "smoke_timeout")
         self.assertTrue(report_exists)
 
 

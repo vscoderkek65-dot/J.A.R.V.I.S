@@ -987,7 +987,7 @@ class JarvisUI:
         primary = [
             "Gemini hazir" if gemini_ready else "Gemini API eksik",
             f"Mod: {provider}",
-            "Cloud hazir" if cloud_ready else "Cloud eksik",
+            "OpenAI/9Router hazir" if cloud_ready else "OpenAI/9Router eksik",
             "Local hazir" if local_ready else "Local eksik",
             "Tavily hazir" if tavily_ready else "Tavily opsiyonel",
             f"Takvim: {calendar_provider}",
@@ -2565,9 +2565,9 @@ class JarvisUI:
 
         title = "◈ API AYARLARI" if edit_mode else "◈ İLK KURULUM GEREKLİ"
         subtitle = (
-            "Gemini, Cloud/OpenAI-compatible, Local AI ve YouTube ayarlarinizi guncelleyin."
+            "Gemini, OpenAI API/9Router, Local AI ve YouTube ayarlarinizi guncelleyin."
             if edit_mode else
-            "Cloud, Local veya Hybrid ajan modunu secin. YouTube/Tavily alanlari opsiyoneldir."
+            "OpenAI API/9Router, Local veya Hybrid ajan modunu secin. YouTube/Tavily alanlari opsiyoneldir."
         )
         config = load_app_config()
 
@@ -2592,7 +2592,7 @@ class JarvisUI:
                  fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(4, 2))
         provider_map = {
             "hybrid": "Hybrid",
-            "cloud": "Cloud",
+            "cloud": "OpenAI API / 9Router",
             "local": "Local",
         }
         current_provider = str(config.get("agent_mode", "hybrid") or "hybrid")
@@ -2602,7 +2602,7 @@ class JarvisUI:
             self.setup_frame,
             self.agent_provider_var,
             "Hybrid",
-            "Cloud",
+            "OpenAI API / 9Router",
             "Local",
         )
         provider_menu.config(
@@ -2616,7 +2616,7 @@ class JarvisUI:
         )
         provider_menu.pack(pady=(0, 4), ipady=2)
 
-        tk.Label(self.setup_frame, text="CLOUD / OPENAI-COMPATIBLE URL(S)",
+        tk.Label(self.setup_frame, text="OPENAI API / 9ROUTER URL",
                  fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(3, 2))
         self.ninerouter_url_entry = tk.Entry(
             self.setup_frame, width=60,
@@ -2627,7 +2627,7 @@ class JarvisUI:
         if current_url:
             self.ninerouter_url_entry.insert(0, current_url)
 
-        tk.Label(self.setup_frame, text="CLOUD MODEL",
+        tk.Label(self.setup_frame, text="OPENAI-COMPATIBLE MODEL",
                  fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(3, 2))
         self.ninerouter_model_entry = tk.Entry(
             self.setup_frame, width=60,
@@ -2638,7 +2638,7 @@ class JarvisUI:
         if current_model:
             self.ninerouter_model_entry.insert(0, current_model)
 
-        tk.Label(self.setup_frame, text="CLOUD API KEY",
+        tk.Label(self.setup_frame, text="OPENAI-COMPATIBLE API KEY",
                  fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(3, 2))
         self.ninerouter_key_entry = tk.Entry(
             self.setup_frame, width=60,
@@ -2648,6 +2648,16 @@ class JarvisUI:
         current_ninerouter_key = str(config.get("cloud_api_key", "") or config.get("ninerouter_api_key", "") or "")
         if current_ninerouter_key:
             self.ninerouter_key_entry.insert(0, current_ninerouter_key)
+
+        tk.Label(
+            self.setup_frame,
+            text="Not: ChatGPT Plus/Business OAuth, model API key yerine gecmez.",
+            fg=C_WARN,
+            bg="#00080d",
+            font=font_body(9),
+            wraplength=520,
+            justify="center",
+        ).pack(pady=(0, 4))
 
         tk.Label(self.setup_frame, text="LOCAL PROVIDER",
                  fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(3, 2))
@@ -2792,7 +2802,7 @@ class JarvisUI:
         if not self.agent_provider_var:
             return
         label = self.agent_provider_var.get().strip()
-        cloud_state = "normal" if label in {"Hybrid", "Cloud"} else "disabled"
+        cloud_state = "normal" if label in {"Hybrid", "OpenAI API / 9Router"} else "disabled"
         local_state = "normal" if label in {"Hybrid", "Local"} else "disabled"
         for entry in (self.ninerouter_url_entry, self.ninerouter_model_entry, self.ninerouter_key_entry):
             if entry:
@@ -2805,7 +2815,7 @@ class JarvisUI:
 
     def _setup_mode_key(self) -> str:
         label = self.agent_provider_var.get().strip() if self.agent_provider_var else "Hybrid"
-        return {"Hybrid": "hybrid", "Cloud": "cloud", "Local": "local"}.get(label, "hybrid")
+        return {"Hybrid": "hybrid", "OpenAI API / 9Router": "cloud", "Local": "local"}.get(label, "hybrid")
 
     def _setup_local_provider_key(self) -> str:
         label = self.local_provider_var.get().strip() if self.local_provider_var else "Microsoft Foundry Local"
@@ -2858,7 +2868,7 @@ class JarvisUI:
             and bool(str(updates.get("local_model", "") or "").strip())
         )
         if not key and not cloud_ready and not local_ready:
-            self.write_log("ERR: Kaydetmek icin Gemini, Cloud endpoint veya Local AI alanlarini doldur.")
+            self.write_log("ERR: Kaydetmek icin Gemini, OpenAI/9Router endpoint veya Local AI alanlarini doldur.")
             return
         save_app_config(updates)
         self._close_setup_ui()
