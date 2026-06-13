@@ -354,4 +354,58 @@ TOOL_DECLARATIONS: list[dict[str, Any]] = [
             "required": ["plugin_id", "tool_name"],
         },
     },
+    # --- Document Generation ---
+    {
+        "name": "create_pdf",
+        "description": "JSON deskriptorden PDF belgesi olusturur. Rapor, fatura, dokuman gibi ciktilarda kullan.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "descriptor_json": {"type": "STRING", "description": "PDF deskriptoru JSON (title, pages, elements)"},
+                "output_path": {"type": "STRING", "description": "Kaydedilecek dosya yolu (.pdf)"},
+            },
+            "required": ["descriptor_json", "output_path"],
+        },
+    },
+    {
+        "name": "create_docx",
+        "description": "JSON deskriptorden Word belgesi (.docx) olusturur. Rapor, teklif, mektup, CV gibi dokumanlarda kullan.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "descriptor_json": {"type": "STRING", "description": "DOCX deskriptoru JSON (sections, children, styles)"},
+                "output_path": {"type": "STRING", "description": "Kaydedilecek dosya yolu (.docx)"},
+            },
+            "required": ["descriptor_json", "output_path"],
+        },
+    },
+    {
+        "name": "create_xlsx",
+        "description": "JSON deskriptorden Excel tablosu (.xlsx) olusturur. Veri, rapor, butce gibi tablosal ciktilarda kullan.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "descriptor_json": {"type": "STRING", "description": "XLSX deskriptoru JSON (sheets, columns, rows)"},
+                "output_path": {"type": "STRING", "description": "Kaydedilecek dosya yolu (.xlsx)"},
+            },
+            "required": ["descriptor_json", "output_path"],
+        },
+    },
+    {
+        "name": "create_pptx",
+        "description": "JSON deskriptorden PowerPoint sunusu (.pptx) olusturur. Sunum, pitch deck, slaytlarda kullan.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "descriptor_json": {"type": "STRING", "description": "PPTX deskriptoru JSON (layout, slides, elements)"},
+                "output_path": {"type": "STRING", "description": "Kaydedilecek dosya yolu (.pptx)"},
+            },
+            "required": ["descriptor_json", "output_path"],
+        },
+    },
+    {
+        "name": "document_status",
+        "description": "zenskill CLI'nin kurulu olup olmadigini ve versiyonunu kontrol eder.",
+        "parameters": {"type": "OBJECT", "properties": {}},
+    },
 ]

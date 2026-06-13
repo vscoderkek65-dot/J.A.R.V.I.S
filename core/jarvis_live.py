@@ -79,6 +79,7 @@ from actions.local_tasks import handle_local_task_command
 from actions.local_memory import handle_local_memory_command
 from actions.logging_utils import safe_log_preview
 from actions.smoke import build_timeout_report, run_smoke_sequence
+from actions.documents import create_pdf, create_docx, create_xlsx, create_pptx, document_status
 from actions.tts import get_speech_controller
 from actions.voice_control import (
     SpeechMemory,
@@ -1249,6 +1250,51 @@ class JarvisLive:
                     ),
                 )
                 result = r or "WhatsApp kişisi kaydedildi."
+
+            # --- Document Generation ---
+            elif name == "create_pdf":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: create_pdf(
+                        json.loads(args.get("descriptor_json", "{}")),
+                        args.get("output_path", ""),
+                    ),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "create_docx":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: create_docx(
+                        json.loads(args.get("descriptor_json", "{}")),
+                        args.get("output_path", ""),
+                    ),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "create_xlsx":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: create_xlsx(
+                        json.loads(args.get("descriptor_json", "{}")),
+                        args.get("output_path", ""),
+                    ),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "create_pptx":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: create_pptx(
+                        json.loads(args.get("descriptor_json", "{}")),
+                        args.get("output_path", ""),
+                    ),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "document_status":
+                r = await loop.run_in_executor(None, document_status)
+                result = json.dumps(r, ensure_ascii=False)
 
             else:
                 result = f"Bilinmeyen araç: {name}"
