@@ -80,6 +80,8 @@ from actions.local_memory import handle_local_memory_command
 from actions.logging_utils import safe_log_preview
 from actions.smoke import build_timeout_report, run_smoke_sequence
 from actions.documents import create_pdf, create_docx, create_xlsx, create_pptx, document_status
+from actions.database import query_database, list_tables, database_status
+from actions.network import ping_host, dns_lookup, http_check, network_status
 from actions.tts import get_speech_controller
 from actions.voice_control import (
     SpeechMemory,
@@ -1294,6 +1296,54 @@ class JarvisLive:
 
             elif name == "document_status":
                 r = await loop.run_in_executor(None, document_status)
+                result = json.dumps(r, ensure_ascii=False)
+
+            # --- Database ---
+            elif name == "query_database":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: query_database(
+                        args.get("db_path", ""),
+                        args.get("sql", ""),
+                        None,
+                        int(args.get("limit", 100) or 100),
+                    ),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "list_tables":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: list_tables(args.get("db_path", "")),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            # --- Network ---
+            elif name == "ping_host":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: ping_host(
+                        args.get("host", ""),
+                        int(args.get("count", 4) or 4),
+                    ),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "dns_lookup":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: dns_lookup(args.get("host", "")),
+                )
+                result = json.dumps(r, ensure_ascii=False)
+
+            elif name == "http_check":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: http_check(
+                        args.get("url", ""),
+                        int(args.get("timeout", 10) or 10),
+                    ),
+                )
                 result = json.dumps(r, ensure_ascii=False)
 
             else:

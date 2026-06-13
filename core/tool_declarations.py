@@ -408,4 +408,65 @@ TOOL_DECLARATIONS: list[dict[str, Any]] = [
         "description": "zenskill CLI'nin kurulu olup olmadigini ve versiyonunu kontrol eder.",
         "parameters": {"type": "OBJECT", "properties": {}},
     },
+    # --- Database ---
+    {
+        "name": "query_database",
+        "description": "SQLite veritabaninda SELECT sorgusu calistirir. Sadece okuma izni vardir, degisiklik yapamaz.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "db_path": {"type": "STRING", "description": "SQLite veritabani dosya yolu"},
+                "sql": {"type": "STRING", "description": "SELECT sorgusu"},
+                "limit": {"type": "NUMBER", "description": "Maksimum satir sayisi"},
+            },
+            "required": ["db_path", "sql"],
+        },
+    },
+    {
+        "name": "list_tables",
+        "description": "SQLite veritabanindaki tablolari listeler.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "db_path": {"type": "STRING", "description": "SQLite veritabani dosya yolu"},
+            },
+            "required": ["db_path"],
+        },
+    },
+    # --- Network ---
+    {
+        "name": "ping_host",
+        "description": "Bir sunucuya ping gonderir ve cevap surelerini olcer.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "host": {"type": "STRING", "description": "Ping atilacak host veya IP"},
+                "count": {"type": "NUMBER", "description": "Gonderilecek paket sayisi (varsayilan 4)"},
+            },
+            "required": ["host"],
+        },
+    },
+    {
+        "name": "dns_lookup",
+        "description": "Bir domain adinin DNS kayitlarini ve IP adreslerini goruntuler.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "host": {"type": "STRING", "description": "DNS sorgulanacak host adi"},
+            },
+            "required": ["host"],
+        },
+    },
+    {
+        "name": "http_check",
+        "description": "Bir URL'nin erisilebilir olup olmadigini kontrol eder ve HTTP durum kodunu dondurur.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "url": {"type": "STRING", "description": "Kontrol edilecek URL"},
+                "timeout": {"type": "NUMBER", "description": "Zaman asimi saniyesi (varsayilan 10)"},
+            },
+            "required": ["url"],
+        },
+    },
 ]
