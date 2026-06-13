@@ -1,19 +1,59 @@
-venv/
+# --- Python ---
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-*.log
-*.tmp
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+*.manifest
+*.spec
+
+# --- Virtual environment ---
+venv/
+.venv/
+env/
+.env/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
-.vscode/
+*.iml
+.vs/
+*.sublime-*
+
+# --- AI / Agent ---
 .claude/
+.opencode/
+.kilocode/
 .swift-cache/
 .swift-home/
-.env
-.env.*
 
+# --- OS / System ---
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.temp
+desktop.ini
+$RECYCLE.BIN/
+
+# --- Logs ---
+*.log
+*.jsonl
+
+# --- Secrets ---
+.env*
 config/api_keys.json
+
+# --- Runtime data ---
 memory/memory.json
 memory/phone_book.json
 memory/*.sqlite3
@@ -24,3 +64,24 @@ memory/oauth/
 memory/plugins/plugin_state.json
 memory/smoke/
 memory/traces/
+
+# --- Test artifacts ---
+test-results/
+playwright-report/
+test-reports/
+
+# --- Compiled binaries ---
+*.exe
+*.dll
+*.so
+*.dylib
+helpers/bin/
+!helpers/bin/*.swift
+
+# --- Node / npm (via plugins) ---
+node_modules/
+package-lock.json
+
+# --- Docker ---
+.docker/
+docker-compose.override.yml
