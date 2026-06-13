@@ -130,21 +130,13 @@ class TaskSystemTests(unittest.TestCase):
 
         self.assertIn("Windows baslangic takibi", status)
 
-    def test_main_dispatch_keeps_startup_changes_pending(self) -> None:
-        main_text = (ROOT / "main.py").read_text(encoding="utf-8")
-        enable_block = main_text.split('elif name == "enable_startup_tracking":', 1)[1].split(
-            'elif name == "disable_startup_tracking":', 1
-        )[0]
-        disable_block = main_text.split('elif name == "disable_startup_tracking":', 1)[1].split(
-            'elif name == "open_app":', 1
-        )[0]
-
-        self.assertIn('elif name == "enable_startup_tracking"', main_text)
-        self.assertIn('elif name == "disable_startup_tracking"', main_text)
-        self.assertIn("self._guarded_tool_action(", enable_block)
-        self.assertIn("enable_startup_tracking", enable_block)
-        self.assertIn("self._guarded_tool_action(", disable_block)
-        self.assertIn("disable_startup_tracking", disable_block)
+    def test_live_dispatch_keeps_startup_changes_pending(self) -> None:
+        main_text = (ROOT / "core" / "jarvis_live.py").read_text(encoding="utf-8")
+        self.assertIn("enable_startup_tracking", main_text)
+        self.assertIn("disable_startup_tracking", main_text)
+        # Check startup tracking calls go through guarded_tool_action
+        self.assertIn("self._guarded_tool_action(name, args, enable_startup_tracking)", main_text)
+        self.assertIn("self._guarded_tool_action(name, args, disable_startup_tracking)", main_text)
 
 
 if __name__ == "__main__":

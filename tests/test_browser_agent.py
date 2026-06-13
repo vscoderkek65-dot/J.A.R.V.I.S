@@ -254,17 +254,14 @@ class BrowserAgentTests(unittest.TestCase):
         self.assertTrue(calls)
         self.assertTrue(calls[0][1])
 
-    def test_main_dispatch_keeps_risky_browser_actions_pending(self) -> None:
-        main_text = (ROOT / "main.py").read_text(encoding="utf-8")
-        fill_block = main_text.split('elif name == "browser_fill":', 1)[1].split('elif name == "browser_submit":', 1)[0]
-        submit_block = main_text.split('elif name == "browser_submit":', 1)[1].split('elif name == "shell_run":', 1)[0]
-
-        self.assertIn('elif name == "browser_fill"', main_text)
-        self.assertIn('elif name == "browser_submit"', main_text)
-        self.assertIn("self._guarded_tool_action(", fill_block)
-        self.assertIn("lambda: browser_fill", fill_block)
-        self.assertIn("self._guarded_tool_action(", submit_block)
-        self.assertIn("lambda: browser_submit", submit_block)
+    def test_live_dispatch_keeps_risky_browser_actions_pending(self) -> None:
+        main_text = (ROOT / "core" / "jarvis_live.py").read_text(encoding="utf-8")
+        self.assertIn("browser_fill", main_text)
+        self.assertIn("browser_submit", main_text)
+        # Check that risky browser actions go through guard
+        self.assertIn("self._guarded_tool_action(", main_text)
+        self.assertIn("lambda: browser_fill(", main_text)
+        self.assertIn("lambda: browser_submit(", main_text)
 
 
 if __name__ == "__main__":

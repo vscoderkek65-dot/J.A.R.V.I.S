@@ -31,8 +31,8 @@ class PublicRepoHygieneTests(unittest.TestCase):
             "run_windows.ps1",
             "test_acceptance.ps1",
             "requirements-voice.txt",
-            "https://api.openai.com/v1",
-            "ChatGPT Plus/Business",
+            "https://api.9router.com/v1",
+            "config/api_keys",
         ):
             self.assertIn(expected, text)
 

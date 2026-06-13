@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=69.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "jarvis-assistant"
+version = "1.0.0"
+description = "Just A Rather Very Intelligent System — Desktop AI Assistant"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "J.A.R.V.I.S Team"},
+]
+keywords = ["ai", "assistant", "desktop", "voice", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Desktop Environment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "google-genai",
+    "SpeechRecognition",
+    "psutil",
+    "Pillow",
+    "requests",
+    "beautifulsoup4",
+    "playwright",
+    "pyperclip",
+    "pyautogui",
+    "pynput",
+    "mcp[cli]",
+    "sounddevice",
+    "pytesseract",
+]
+
+[project.optional-dependencies]
+voice = ["pyaudio"]
+wake = ["pvporcupine", "vosk"]
+dev  = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.11.0",
+    "mypy>=1.15.0",
+    "pre-commit>=4.0",
+    "detect-secrets>=1.5.0",
+    "bandit>=1.8.0",
+    "pip-audit>=2.0",
+    "types-requests",
+    "types-Pillow",
+    "playwright",
+]
+
+[tool.setuptools.packages.find]
+include = ["actions*", "core*", "memory*"]
+exclude = ["tests*", "venv*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = ["venv", "migrations", ".git", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "N", "SIM", "ISC", "PIE", "T20", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+no_strict_optional = true
+exclude = ["venv", "tests", "\.git"]
+
+[tool.bandit]
+skips = ["B101", B301", "B403", "B404", "B603", "B607"]
+exclude_dirs = ["venv", "tests", ".git"]
+
+[tool.coverage.run]
+source = ["actions", "core", "memory"]
+omit = ["venv/*", "tests/*", "**/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

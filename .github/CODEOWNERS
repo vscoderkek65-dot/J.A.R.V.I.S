@@ -1,0 +1,35 @@
+* @vscoderkek65-dot
+
+# Core engine
+/core/ @vscoderkek65-dot
+/main.py @vscoderkek65-dot
+
+# Actions / tools
+/actions/ @vscoderkek65-dot
+
+# Memory system
+/memory/ @vscoderkek65-dot
+
+# UI
+/ui.py @vscoderkek65-dot
+
+# Configuration
+/config/ @vscoderkek65-dot
+/app_config.py @vscoderkek65-dot
+
+# Tests
+/tests/ @vscoderkek65-dot
+
+# Documentation
+/docs/ @vscoderkek65-dot
+/README.md @vscoderkek65-dot
+/CHANGELOG.md @vscoderkek65-dot
+
+# CI/CD
+/.github/ @vscoderkek65-dot
+
+# Infrastructure
+/Makefile @vscoderkek65-dot
+/pyproject.toml @vscoderkek65-dot
+/.pre-commit-config.yaml @vscoderkek65-dot
+/.devcontainer/ @vscoderkek65-dot

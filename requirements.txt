@@ -1,25 +1,37 @@
-# JARVIS desktop — required packages
+# J.A.R.V.I.S — required packages
+
+# ── AI / LLM ───────────────────────────────────────────────────────────
 google-genai
-SpeechRecognition
-psutil
-Pillow
+mcp[cli]
+
+# ── Core utilities ─────────────────────────────────────────────────────
 requests
 beautifulsoup4
-playwright
+psutil
+Pillow
+
+# ── Speech & Audio ─────────────────────────────────────────────────────
+SpeechRecognition
+sounddevice
 pygame; platform_system == "Windows"
 pyttsx3; platform_system == "Windows"
+pvporcupine; platform_system == "Windows"
+vosk; platform_system == "Windows"
+
+# ── Desktop Automation ─────────────────────────────────────────────────
 pyperclip; platform_system == "Windows"
 pyautogui; platform_system == "Windows"
 pywin32; platform_system == "Windows"
+pynput; platform_system == "Windows"
 pytesseract; platform_system == "Windows"
+
+# ── Browser ────────────────────────────────────────────────────────────
+playwright
+
+# ── Windows-specific ───────────────────────────────────────────────────
 winotify; platform_system == "Windows"
 msal; platform_system == "Windows"
 google-api-python-client; platform_system == "Windows"
 google-auth-httplib2; platform_system == "Windows"
 google-auth-oauthlib; platform_system == "Windows"
 foundry-local-sdk-winml; platform_system == "Windows"
-mcp[cli]
-pvporcupine; platform_system == "Windows"
-vosk; platform_system == "Windows"
-sounddevice; platform_system == "Windows"
-pynput; platform_system == "Windows"

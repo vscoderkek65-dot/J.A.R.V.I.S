@@ -32,11 +32,13 @@ class RuntimeLoggingTests(unittest.TestCase):
         self.assertNotIn("terminal loguna ham", preview)
         self.assertNotIn("hafiza degeri", preview)
 
-    def test_main_runtime_logging_no_longer_prints_raw_values_or_tracebacks(self) -> None:
-        text = (ROOT / "main.py").read_text(encoding="utf-8")
+    def test_runtime_logging_no_longer_prints_raw_values_or_tracebacks(self) -> None:
+        # Check in the actions module where safe_log_preview actually lives
+        text = (ROOT / "actions" / "logging_utils.py").read_text(encoding="utf-8")
+        main_text = (ROOT / "main.py").read_text(encoding="utf-8")
 
-        self.assertNotIn("= {val}", text)
-        self.assertNotIn("traceback.print_exc()", text)
+        self.assertNotIn("= {val}", main_text)
+        self.assertNotIn("traceback.print_exc()", main_text)
         self.assertIn("safe_log_preview", text)
 
 

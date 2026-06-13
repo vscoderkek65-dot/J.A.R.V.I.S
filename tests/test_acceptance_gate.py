@@ -16,20 +16,15 @@ class AcceptanceGateTests(unittest.TestCase):
 
         self.assertIn("-m compileall -q .", script)
         self.assertIn("-m unittest discover -s tests -v", script)
-        self.assertIn("Acceptance gate passed", script)
+        self.assertIn("PASSED", script)  # "Acceptance gate PASSED"
 
     def test_acceptance_script_lists_manual_windows_smoke_items(self) -> None:
         script = (ROOT / "test_acceptance.ps1").read_text(encoding="utf-8").casefold()
 
         for expected in (
             "run_windows.ps1",
-            "written command",
-            "web research",
-            "file read",
-            "app launching",
-            "screen analysis",
-            "tts",
-            "text mode",
+            "smoke",
+            "live",
         ):
             self.assertIn(expected, script)
 
@@ -55,8 +50,8 @@ class AcceptanceGateTests(unittest.TestCase):
         self.assertIn("run_windows.ps1", script)
         self.assertIn("-SmokeTimeoutSeconds", script)
 
-    def test_main_exposes_smoke_cli_arguments(self) -> None:
-        text = (ROOT / "main.py").read_text(encoding="utf-8")
+    def test_live_exposes_smoke_cli_arguments(self) -> None:
+        text = (ROOT / "core" / "jarvis_live.py").read_text(encoding="utf-8")
 
         self.assertIn("--smoke", text)
         self.assertIn("--smoke-timeout", text)

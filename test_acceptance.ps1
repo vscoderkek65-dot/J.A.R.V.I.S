@@ -13,25 +13,49 @@ if (-not (Test-Path $venvPython)) {
     exit 1
 }
 
+$exitCode = 0
+
 Write-Host ""
 Write-Host "========================================"
-Write-Host "        J.A.R.V.I.S Acceptance Gate"
+Write-Host "   J.A.R.V.I.S Acceptance Gate v1.0"
 Write-Host "========================================"
 Write-Host ""
 
-Write-Host "[1/3] Static parse: python -m compileall -q ."
+# ── [1/5] Static parse ─────────────────────────────────────────────────
+Write-Host "[1/5] Static parse: compileall -q" -ForegroundColor Cyan
 & $venvPython -m compileall -q .
 if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+    Write-Host "FAIL: compileall failed" -ForegroundColor Red
+    $exitCode = 1
+} else {
+    Write-Host "  PASS" -ForegroundColor Green
 }
 
-Write-Host "[2/3] Unit/regression tests: python -m unittest discover -s tests -v"
-& $venvPython -m unittest discover -s tests -v
+# ── [2/5] Ruff linting ─────────────────────────────────────────────────
+Write-Host "[2/5] Code quality: ruff check" -ForegroundColor Cyan
+$ruffCheck = & $venvPython -m ruff check actions/ core/ memory/ tests/ --quiet 2>&1
 if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+    Write-Host "  Issues found:" -ForegroundColor Yellow
+    $ruffCheck | ForEach-Object { Write-Host "    $_" }
+    Write-Host "  Run 'ruff format' to auto-fix." -ForegroundColor Yellow
+    # Non-blocking for now — warn but don't fail
+    Write-Host "  WARN (non-blocking)" -ForegroundColor Yellow
+} else {
+    Write-Host "  PASS" -ForegroundColor Green
 }
 
-Write-Host "[3/3] Secret scan: committed text files"
+# ── [3/5] Unit/regression tests ───────────────────────────────────────
+Write-Host "[3/5] Unit tests: unittest discover -s tests -v" -ForegroundColor Cyan
+& $venvPython -m unittest discover -s tests -v 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "FAIL: Unit tests failed" -ForegroundColor Red
+    $exitCode = 1
+} else {
+    Write-Host "  PASS" -ForegroundColor Green
+}
+
+# ── [4/5] Secret scan ──────────────────────────────────────────────────
+Write-Host "[4/5] Secret scan: committed text files" -ForegroundColor Cyan
 $patterns = @(
     @{Name='openai_like_key'; Regex='sk-[A-Za-z0-9_\-]{20,}'},
     @{Name='tavily_key'; Regex='tvly-[A-Za-z0-9_\-]{20,}'},
@@ -58,29 +82,52 @@ foreach ($file in $trackedFiles) {
     }
 }
 if ($hits.Count -gt 0) {
-    Write-Host "Potential committed secrets found:" -ForegroundColor Red
+    Write-Host "FAIL: Potential committed secrets found:" -ForegroundColor Red
     $hits | Sort-Object File,Line,Pattern | Format-Table -AutoSize
-    exit 1
+    $exitCode = 1
+} else {
+    Write-Host "  PASS" -ForegroundColor Green
 }
 
-Write-Host ""
-Write-Host "Acceptance gate passed." -ForegroundColor Green
-Write-Host ""
-Write-Host "Manual Windows smoke checklist:"
-Write-Host "  powershell -ExecutionPolicy Bypass -File .\run_windows.ps1"
-Write-Host "  - UI opens"
-Write-Host "  - Written command works"
-Write-Host "  - Web research works"
-Write-Host "  - File read works"
-Write-Host "  - App launching works"
-Write-Host "  - Screen analysis works"
-Write-Host "  - TTS works, or broken microphone/audio falls back to TEXT MODE without crashing"
+# ── [5/5] Version consistency ──────────────────────────────────────────
+Write-Host "[5/5] Version consistency check" -ForegroundColor Cyan
+$versionFile = Join-Path $PSScriptRoot "VERSION"
+if (Test-Path $versionFile) {
+    $version = Get-Content $versionFile -Raw | ForEach-Object { $_.Trim() }
+    Write-Host "  VERSION file: $version" -ForegroundColor Green
 
-if ($Smoke) {
-    Write-Host ""
-    Write-Host "[Smoke] Running live Windows smoke..."
+    # Check git tag matches if on a tag
+    $gitTag = git describe --exact-match --tags HEAD 2>$null
+    if ($gitTag) {
+        $tagVersion = $gitTag -replace "^v", ""
+        if ($tagVersion -eq $version) {
+            Write-Host "  Git tag matches: $gitTag" -ForegroundColor Green
+        } else {
+            Write-Host "  WARN: Git tag ($gitTag) != VERSION file ($version)" -ForegroundColor Yellow
+        }
+    }
+} else {
+    Write-Host "  WARN: VERSION file not found" -ForegroundColor Yellow
+}
+
+# ── Summary ────────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "========================================"
+if ($exitCode -eq 0) {
+    Write-Host "  Acceptance gate PASSED" -ForegroundColor Green
+} else {
+    Write-Host "  Acceptance gate FAILED (exit code: $exitCode)" -ForegroundColor Red
+}
+Write-Host "========================================"
+Write-Host ""
+
+# ── Optional: live smoke ──────────────────────────────────────────────
+if ($Smoke -and $exitCode -eq 0) {
+    Write-Host "[Smoke] Running live Windows smoke..." -ForegroundColor Cyan
     & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "run_windows.ps1") -Smoke -SmokeTimeoutSeconds $SmokeTimeoutSeconds -SmokeApp $SmokeApp
     if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+        $exitCode = $LASTEXITCODE
     }
 }
+
+exit $exitCode
