@@ -236,8 +236,12 @@ class SettingsMixin:
         self._show_setup_ui(edit_mode=self._api_key_ready)
 
     def _close_setup_ui(self):
-        if self.setup_frame and self.setup_frame.winfo_exists():
+        dialog = getattr(self, "setup_dialog", None)
+        if dialog and dialog.winfo_exists():
+            dialog.destroy()
+        elif self.setup_frame and self.setup_frame.winfo_exists():
             self.setup_frame.destroy()
+        self.setup_dialog = None
         self.setup_frame = None
         self.api_entry = None
         self.youtube_api_entry = None
@@ -561,13 +565,63 @@ class SettingsMixin:
         self._close_setup_ui()
         from app_config import load_app_config
 
-        self.setup_frame = tk.Frame(self.root, bg="#00080d",
-                                    highlightbackground=C_PRI,
-                                    highlightthickness=1)
-        setup_w = min(820, max(620, int(self.W * 0.46)))
-        setup_h = min(max(560, self.H - 90), max(620, int(self.H * 0.66)))
-        self.setup_frame.place(relx=0.5, rely=0.5, anchor="center", width=setup_w, height=setup_h)
-        self.setup_frame.pack_propagate(False)
+        surface = "#071116"
+        panel = "#0b1820"
+        field = "#0c222b"
+        setup_w = min(980, max(700, int(self.W * 0.56)))
+        setup_h = min(max(620, self.H - 80), max(700, int(self.H * 0.78)))
+        self.setup_dialog = tk.Frame(
+            self.root,
+            bg=surface,
+            highlightbackground="#1ee6cf",
+            highlightthickness=1,
+        )
+        self.setup_dialog.place(
+            relx=0.5,
+            rely=0.5,
+            anchor="center",
+            width=setup_w,
+            height=setup_h,
+        )
+        self.setup_dialog.lift()
+
+        header = tk.Frame(self.setup_dialog, bg=surface, height=92)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        canvas_shell = tk.Frame(self.setup_dialog, bg=panel)
+        canvas_shell.pack(fill="both", expand=True, padx=18)
+        canvas = tk.Canvas(canvas_shell, bg=panel, highlightthickness=0)
+        scrollbar = tk.Scrollbar(
+            canvas_shell,
+            orient="vertical",
+            command=canvas.yview,
+            bg=surface,
+            troughcolor=panel,
+            activebackground=C_PRI,
+        )
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        self.setup_frame = tk.Frame(canvas, bg=panel)
+        content_window = canvas.create_window(
+            (0, 0),
+            window=self.setup_frame,
+            anchor="nw",
+        )
+
+        def resize_content(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfigure(content_window, width=max(100, canvas.winfo_width()))
+
+        self.setup_frame.bind("<Configure>", resize_content)
+        canvas.bind("<Configure>", resize_content)
+
+        def scroll(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        canvas.bind_all("<MouseWheel>", scroll)
 
         title = "\u2316 API AYARLARI" if edit_mode else "\u2316 \u0130LK KURULUM GEREKL\u0130"
         subtitle = (
@@ -577,25 +631,36 @@ class SettingsMixin:
         )
         config = load_app_config()
 
-        tk.Label(self.setup_frame, text=title,
-                 fg=C_PRI, bg="#00080d", font=font_display(18)).pack(pady=(18, 4))
-        tk.Label(self.setup_frame, text=subtitle,
-                 fg=C_MID, bg="#00080d", font=font_body(11)).pack(pady=(0, 8))
+        tk.Label(
+            header,
+            text=title,
+            fg="#d9fffb",
+            bg=surface,
+            font=font_display(20),
+        ).pack(anchor="w", padx=24, pady=(16, 2))
+        tk.Label(
+            header,
+            text=subtitle,
+            fg="#60a8a2",
+            bg=surface,
+            font=font_body(10),
+        ).pack(anchor="w", padx=24)
         tk.Label(self.setup_frame, text="GEMINI API KEY",
-                 fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(4, 2))
+                 fg="#6f999c", bg=panel, font=font_body(10)).pack(pady=(16, 4))
 
         self.api_entry = tk.Entry(
             self.setup_frame, width=60,
-            fg=C_TEXT, bg="#000d12", insertbackground=C_TEXT,
-            borderwidth=0, font=font_body(11), show="*")
-        self.api_entry.pack(pady=(0, 4), ipady=3)
+            fg="#e0fffb", bg=field, insertbackground=C_PRI,
+            borderwidth=0, font=font_body(11), show="*",
+            highlightthickness=1, highlightbackground="#173b43")
+        self.api_entry.pack(fill="x", padx=42, pady=(0, 8), ipady=7)
 
         current_key = str(config.get("gemini_api_key", "") or "")
         if current_key:
             self.api_entry.insert(0, current_key)
 
         tk.Label(self.setup_frame, text="MODEL MODE",
-                 fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(4, 2))
+                 fg="#6f999c", bg=panel, font=font_body(10)).pack(pady=(6, 4))
         provider_map = {
             "hybrid": "Hybrid",
             "cloud": "OpenAI API / 9Router",
@@ -612,7 +677,7 @@ class SettingsMixin:
             "Local",
         )
         provider_menu.config(
-            width=54, fg=C_TEXT, bg="#000d12", activeforeground=C_BG,
+            width=54, fg=C_TEXT, bg=field, activeforeground=C_BG,
             activebackground=C_PRI, font=font_body(10), borderwidth=0,
             highlightthickness=1, highlightbackground=C_MID,
         )
@@ -620,7 +685,7 @@ class SettingsMixin:
             fg=C_PRI, bg=C_PANEL, font=font_body(10),
             activeforeground=C_BG, activebackground=C_PRI,
         )
-        provider_menu.pack(pady=(0, 4), ipady=2)
+        provider_menu.pack(fill="x", padx=42, pady=(0, 10), ipady=4)
 
         tk.Label(self.setup_frame, text="OPENAI API / 9ROUTER URL",
                  fg=C_DIM, bg="#00080d", font=font_body(10)).pack(pady=(3, 2))
@@ -785,24 +850,35 @@ class SettingsMixin:
         if current_handle:
             self.youtube_handle_entry.insert(0, current_handle)
 
-        buttons = tk.Frame(self.setup_frame, bg="#00080d")
-        buttons.pack(side="bottom", pady=(8, 14))
+        footer = tk.Frame(
+            self.setup_dialog,
+            bg=surface,
+            height=72,
+            highlightbackground="#17343b",
+            highlightthickness=1,
+        )
+        footer.pack(fill="x", padx=18, pady=(0, 16))
+        footer.pack_propagate(False)
+        buttons = tk.Frame(footer, bg=surface)
+        buttons.pack(side="right", padx=16, pady=12)
 
-        tk.Button(buttons, text="\u2714 KAYDET",
-                  command=self._save_api_key, bg=C_BG, fg=C_PRI,
-                  activebackground="#003344", font=font_body_bold(13),
-                  borderwidth=0, padx=24, pady=10).pack(side="left", padx=8)
+        tk.Button(buttons, text="\u2714 AYARLARI KAYDET",
+                  command=self._save_api_key, bg=C_PRI, fg="#001514",
+                  activebackground="#58ffe9", font=font_body_bold(11),
+                  borderwidth=0, padx=22, pady=9, cursor="hand2").pack(side="left", padx=6)
 
-        tk.Button(buttons, text="LOCAL TEST",
+        tk.Button(buttons, text="BA\u011eLANTIYI TEST ET",
                   command=self._test_local_ai_from_setup, bg="#06131a", fg=C_GOLD,
-                  activebackground="#10202b", font=font_body_bold(13),
-                  borderwidth=0, padx=18, pady=10).pack(side="left", padx=8)
+                  activebackground="#10202b", font=font_body_bold(11),
+                  borderwidth=0, padx=18, pady=9, cursor="hand2").pack(side="left", padx=6)
 
         if edit_mode:
             tk.Button(buttons, text="KAPAT",
                       command=self._close_setup_ui, bg="#08111a", fg=C_DIM,
-                      activebackground="#10202b", font=font_body_bold(13),
-                      borderwidth=0, padx=24, pady=10).pack(side="left", padx=8)
+                      activebackground="#10202b", font=font_body_bold(11),
+                      borderwidth=0, padx=20, pady=9, cursor="hand2").pack(side="left", padx=6)
+
+        self.root.after(80, resize_content)
 
     def _refresh_setup_provider_state(self):
         if not self.agent_provider_var:
@@ -864,6 +940,13 @@ class SettingsMixin:
         from app_config import save_app_config
         updates = self._collect_setup_updates()
         key = str(updates.get("gemini_api_key", "") or "")
+        cloud_key = str(updates.get("cloud_api_key", "") or "").strip()
+        if cloud_key.casefold().startswith(("http://", "https://")):
+            self.write_log(
+                "ERR: OpenAI-compatible API KEY alanina URL yazilmis. "
+                "URL ustteki endpoint alaninda kalmali; API KEY alanina saglayicinin verdigi gizli anahtari gir."
+            )
+            return
         cloud_ready = all(str(updates.get(k, "") or "").strip() for k in ("cloud_base_url", "cloud_model", "cloud_api_key"))
         local_provider = str(updates.get("local_provider", "") or "")
         local_ready = (
@@ -890,12 +973,46 @@ class SettingsMixin:
     def _test_local_ai_from_setup(self):
         from app_config import save_app_config
         updates = self._collect_setup_updates()
+        cloud_key = str(updates.get("cloud_api_key", "") or "").strip()
+        if cloud_key.casefold().startswith(("http://", "https://")):
+            self.write_log(
+                "ERR: API KEY alani URL iceriyor. PersorAI panelindeki gercek API anahtarini gir."
+            )
+            return
         save_app_config(updates)
-        self.write_log("SYS: Local AI testi baslatildi...")
+        mode = self._setup_mode_key()
+        self.write_log("SYS: Model baglanti testi baslatildi...")
 
         def worker():
-            from actions.local_ai import test_local_ai
-            result = test_local_ai("Merhaba, JARVIS local testine tek cumle cevap ver.")
+            if mode in {"cloud", "hybrid"}:
+                from actions.local_ai import cloud_agent_config
+                from core.llm_client import _extract_message_text, _post_chat_completion
+
+                config = cloud_agent_config(updates)
+                missing = config.missing_fields()
+                if missing:
+                    result = "Cloud ayarlari eksik: " + ", ".join(missing)
+                else:
+                    try:
+                        data = _post_chat_completion(
+                            config,
+                            {
+                                "model": config.model,
+                                "messages": [{"role": "user", "content": "Reply with OK only."}],
+                                "temperature": 0,
+                                "stream": False,
+                            },
+                        )
+                        choices = data.get("choices") or []
+                        message = (choices[0].get("message") if choices else {}) or {}
+                        result = "Cloud baglantisi basarili: " + (
+                            _extract_message_text(message) or "yanit alindi"
+                        )
+                    except Exception as exc:
+                        result = f"Cloud baglantisi basarisiz: {type(exc).__name__}: {exc}"
+            else:
+                from actions.local_ai import test_local_ai
+                result = test_local_ai("Merhaba, JARVIS local testine tek cumle cevap ver.")
             self.root.after(0, lambda: self.write_log("SYS: " + result.replace("\n", " | ")))
             self.root.after(0, self._refresh_settings_status)
 

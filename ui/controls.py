@@ -193,6 +193,11 @@ class ControlsMixin:
             width=btn_w, height=INPUT_H)
 
     def _place_layout_widgets(self):
+        self.conversation_panel.place(
+            x=10, y=HDR_H + 10, width=max(220, self.LEFT_W - 18),
+            height=self.H - HDR_H - FOOTER_H - 20,
+        )
+        self.conversation_panel.lift()
         self.log_frame.place(x=self.CHAT_X, y=self.CHAT_Y, width=self.CHAT_W, height=self.CHAT_H)
         gap = 12
         mute_w = 126

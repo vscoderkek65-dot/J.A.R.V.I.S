@@ -36,10 +36,7 @@ jobs:
 
       - name: Secret scan
         shell: pwsh
-        run: |
-          $secrets = Select-String -Path "**/*.py","*.md","*.ps1","*.yml","*.json" -Pattern "(?i)(api.?key|secret|token|password|credential)" -SimpleMatch
-          if ($secrets) { Write-Warning "Potential secrets found:"; $secrets }
-          else { Write-Host "No obvious secrets detected." }
+        run: .\venv\Scripts\python.exe scripts\secret_scan.py
 
       - name: Dependency audit
         shell: pwsh
@@ -77,8 +74,5 @@ jobs:
 
       - name: Secret scan
         run: |
-          if grep -r -i -l "api_key\|secret\|token\|password\|credential" --include="*.py" --include="*.md" --include="*.ps1" --include="*.yml" --include="*.json" . 2>/dev/null; then
-            echo "WARNING: Potential secrets detected!"
-          else
-            echo "No obvious secrets detected."
-          fi
+          source venv/bin/activate
+          python scripts/secret_scan.py

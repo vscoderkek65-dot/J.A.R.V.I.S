@@ -1,19 +1,15 @@
 import math, time, threading
-from collections import deque
 
+from actions.weather import get_weather_summary
 from ui.constants import (
-    C_BG, C_PRI, C_ORG, C_ORG2, C_MID, C_DIM, C_DIMMER, C_TEXT,
-    C_PANEL, C_GREEN, C_RED, C_MUTED, C_BLUE, C_GOLD, C_WARN,
-    ORB_COLORS, STATE_HEX_COLORS,
-    HDR_H, FOOTER_H, INPUT_H,
+    C_PRI, C_ORG, C_ORG2, C_MID, C_DIM, C_TEXT, C_PANEL,
+    C_GREEN, C_RED, C_BLUE, C_GOLD, ORB_COLORS, HDR_H, FOOTER_H,
     font_body, font_body_bold, font_display,
 )
 
 
 class PanelsMixin:
-
-    @staticmethod
-    def _split_summary_lines(text, limit=4):
+    def _split_summary_lines(text: str, limit: int = 4) -> list[str]:
         raw = (text or "").strip()
         if not raw:
             return []
@@ -21,34 +17,34 @@ class PanelsMixin:
         parts = [part.strip(" .") for part in raw.split(",") if part.strip()]
         return parts[:limit]
 
-    def _parse_weather_card(self, text):
-        if not text or "al\u0131namad\u0131" in text.lower() or "al\u0131namadi" in text.lower():
+    def _parse_weather_card(self, text: str) -> dict:
+        if not text or "alınamadı" in text.lower() or "alınamadi" in text.lower():
             return {
                 "city": "Istanbul",
                 "primary": "--",
-                "details": ["Hava durumu al\u0131namad\u0131."],
+                "details": ["Hava durumu alınamadı."],
             }
 
         prefix, _, body = text.partition(":")
         city = "Istanbul"
-        if " i\u00e7in" in prefix:
-            city = prefix.split(" i\u00e7in", 1)[0].strip().title()
+        if " için" in prefix:
+            city = prefix.split(" için", 1)[0].strip().title()
 
         details = [part.strip(" .") for part in body.split(",") if part.strip()]
         primary = "--"
         if details:
-            primary = details[0].replace(" derece", "\u00b0C")
+            primary = details[0].replace(" derece", "°C")
         return {
             "city": city,
             "primary": primary,
-            "details": details[1:4] or ["Anl\u0131k veri haz\u0131r."],
+            "details": details[1:4] or ["Anlık veri hazır."],
         }
 
-    def _parse_health_card(self, text):
-        if not text or "al\u0131namad\u0131" in text.lower() or "al\u0131namadi" in text.lower():
-            return ["Sa\u011fl\u0131k verisi al\u0131namad\u0131."]
+    def _parse_health_card(self, text: str) -> list[str]:
+        if not text or "alınamadı" in text.lower() or "alınamadi" in text.lower():
+            return ["Sağlık verisi alınamadı."]
         lines = self._split_summary_lines(text, limit=4)
-        return lines or ["Sa\u011fl\u0131k \u00f6zeti haz\u0131r de\u011fil."]
+        return lines or ["Sağlık özeti hazır değil."]
 
     def _kick_brief_refresh(self):
         if self._brief_refresh_busy:
@@ -58,14 +54,13 @@ class PanelsMixin:
 
     def _refresh_brief_cards(self):
         try:
-            from actions.weather import get_weather_summary
             weather = get_weather_summary("Istanbul")
             self._weather_card = self._parse_weather_card(weather)
         except Exception:
             self._weather_card = {
                 "city": "Istanbul",
                 "primary": "--",
-                "details": ["Hava durumu al\u0131namad\u0131."],
+                "details": ["Hava durumu alınamadı."],
             }
         finally:
             self._brief_refresh_busy = False
@@ -116,7 +111,16 @@ class PanelsMixin:
                       font=font_display(10), anchor="w")
         c.create_line(x0+12, y0+28, x0+pw-12, y0+28, fill=line_fill)
 
-    def show_health_hologram(self, query, data_str):
+    def _focus_boost_for(self, section: str) -> float:
+        if self._panel_focus != section:
+            return 0.0
+        remaining = self._panel_focus_until - time.time()
+        if remaining <= 0:
+            return 0.0
+        pulse = 0.65 + 0.35 * math.sin(self.tick * 0.12)
+        return min(1.0, remaining / 4.0) * pulse
+
+    def show_health_hologram(self, query: str, data_str: str):
         def _show():
             self._health_visible = True
             self._health_query   = query.lower()
@@ -143,7 +147,7 @@ class PanelsMixin:
         self._bracket(c, x0, y0, pw, ph, col=C_ORG, bl=10)
 
         title_col = self._ac(0, 212, 192, int(200 + 55*pulse))
-        c.create_text(x0+pw//2, y0+18, text="\u2316 HEALTH \u2316",
+        c.create_text(x0+pw//2, y0+18, text="◈ HEALTH ◈",
                       fill=title_col, font=font_display(11))
         c.create_line(x0+8, y0+30, x0+pw-8, y0+30, fill=C_MID)
 
@@ -152,7 +156,7 @@ class PanelsMixin:
         for line in lines:
             if ly > y0 + ph - 14:
                 break
-            if line.startswith("\u2500"):
+            if line.startswith("──"):
                 c.create_line(x0+8, ly, x0+pw-8, ly, fill=C_DIM)
                 ly += 10
             elif ":" in line:
@@ -185,7 +189,7 @@ class PanelsMixin:
 
         cards = [
             ("time", 0.22, "TIME", C_GOLD),
-            ("weather", 0.20, "WEATHER \u2502 ISTANBUL", C_BLUE),
+            ("weather", 0.20, "WEATHER · ISTANBUL", C_BLUE),
             ("system", 0.28, "SYSTEM STATUS", C_PRI),
             ("health", 0.30, "HEALTH SUMMARY", C_GREEN),
         ]
@@ -236,7 +240,7 @@ class PanelsMixin:
                               fill=muted_label, font=font_body_bold(10), anchor="w")
                 wy = current_y + 108
                 for line in self._weather_card["details"][:3]:
-                    c.create_text(section_x+section_pad, wy, text=f"\u25b8 {line}", fill=muted_text,
+                    c.create_text(section_x+section_pad, wy, text=f"• {line}", fill=muted_text,
                                   font=font_body(10), anchor="w")
                     wy += 17
 
@@ -250,6 +254,51 @@ class PanelsMixin:
                 cy += 22
                 for label, key, unit in [("CPU", "cpu", "%"), ("RAM", "ram", "%"), ("DISK", "disk", "%"), ("BATTERY", "battery", "%")]:
                     val = self._stats[key]
-                    col = C_RED if val > 80 and key != "battery" else C_ORG if val > 55 and key != "battery" else (C_RED if key == "battery" and (val < 20) else C_GREEN if key == "battery" else C_PRI)
+                    col = C_RED if val > 80 and key != "battery" else C_ORG if val > 55 and key != "battery" else (C_RED if key == "battery" and val < 20 else C_GREEN if key == "battery" else C_PRI)
                     if dimmed:
                         col = muted_red if col == C_RED else muted_warn if col == C_ORG else muted_green if col == C_GREEN else muted_primary
+                    c.create_text(section_x+section_pad, cy, text=label, fill=muted_label, font=font_body(10), anchor="w")
+                    c.create_text(section_x+section_pw-section_pad, cy, text=f"{val:.0f}{unit}", fill=col, font=font_body_bold(10), anchor="e")
+                    cy += 14
+                    self._bar(c, section_x+section_pad, cy, section_bw, 7, val, col)
+                    cy += 16
+                up = self._stats["net_up"]
+                down = self._stats["net_down"]
+                up_s = f"{up:.1f} KB/s" if up < 1000 else f"{up/1024:.1f} MB/s"
+                down_s = f"{down:.1f} KB/s" if down < 1000 else f"{down/1024:.1f} MB/s"
+                c.create_line(section_x+section_pad, cy-4, section_x+section_pw-section_pad, cy-4, fill="#173130" if dimmed else C_DIM)
+                c.create_text(section_x+section_pad, cy+10, text=f"▲ {up_s}", fill=muted_warn, font=font_body(10), anchor="w")
+                c.create_text(section_x+section_pw-section_pad, cy+10, text=f"▼ {down_s}", fill=muted_green, font=font_body(10), anchor="e")
+
+            elif section == "health":
+                hy = current_y + 48
+                for line in self._health_card_lines[:5]:
+                    c.create_text(section_x+section_pad, hy, text=f"• {line}", fill=muted_text,
+                                  font=font_body(10), anchor="w")
+                    hy += 21
+
+            current_y += ph + gap
+
+        self._card_focus_boost = 0.0
+        self._card_dimmed = False
+
+    def _draw_right_panel(self, c):
+        x0  = self.CHAT_PANEL_X
+        y0  = self.CHAT_PANEL_Y
+        pw  = self.CHAT_PANEL_W
+        ph  = self.CHAT_PANEL_H
+        pad = 10
+
+        c.create_rectangle(x0, y0, x0+pw, y0+ph, fill=C_PANEL, outline="")
+        self._bracket(c, x0, y0, pw, ph, col=C_MID)
+
+        if self.paused:
+            sc, st = C_MID, "PAUSED"
+        else:
+            sc, st = self._state_color(self._jarvis_state), self._jarvis_state
+
+        c.create_text(x0+14, y0+16, text="JARVIS WORKSPACE", fill=C_PRI,
+                      font=font_display(11), anchor="w")
+        c.create_text(x0+pw-pad, y0+16, text=self._state_display_text(st), fill=sc,
+                      font=font_body_bold(10), anchor="e")
+        c.create_line(x0+pad, y0+28, x0+pw-pad, y0+28, fill=C_DIM)

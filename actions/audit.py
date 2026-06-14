@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_AUDIT_DIR = BASE_DIR / "memory" / "audit"
 SENSITIVE_KEY_RE = re.compile(r"(api[_-]?key|token|secret|password|authorization|bearer|parola|sifre|şifre)", re.IGNORECASE)
 SENSITIVE_VALUE_RE = re.compile(
-    r"(?i)(bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|[a-z0-9_-]{32,})"
+    r"(?i)(bearer\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|xox[baprs]-[a-z0-9-]+|ghp_[a-zA-Z0-9_]+|gho_[a-zA-Z0-9_]+|[a-f0-9]{64})"
 )
 
 

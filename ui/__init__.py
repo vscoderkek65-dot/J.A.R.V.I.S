@@ -23,35 +23,36 @@ from ui.orb import OrbMixin
 from ui.panels import PanelsMixin
 from ui.controls import ControlsMixin
 from ui.settings import SettingsMixin
+from ui.conversations import ConversationsMixin
 
 
-class JarvisUI(OrbMixin, PanelsMixin, ControlsMixin, SettingsMixin):
+class JarvisUI(OrbMixin, PanelsMixin, ControlsMixin, SettingsMixin, ConversationsMixin):
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("J.A.R.V.I.S")
         self.root.update_idletasks()
 
+        app_cfg = load_app_config()
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        margin_x = max(24, int(sw * 0.025))
-        margin_y = max(54, int(sh * 0.055))
-        self.W = min(max(640, sw - margin_x), sw, W_TARGET)
-        self.H = min(max(520, sh - margin_y), sh, H_TARGET)
+        requested_w = int(app_cfg.get("window_width", 1360) or 1360)
+        requested_h = int(app_cfg.get("window_height", 860) or 860)
+        self.W = min(max(960, requested_w), max(960, sw - 48), W_TARGET)
+        self.H = min(max(680, requested_h), max(680, sh - 80), H_TARGET)
         _geo = f"{self.W}x{self.H}+{(sw-self.W)//2}+{max(0, (sh-self.H)//2 - 8)}"
         self.root.geometry(_geo)
-        self.root.minsize(min(self.W, sw), min(self.H, sh))
+        self.root.minsize(min(960, sw), min(680, sh))
         self.root.resizable(True, True)
         self.root.configure(bg=C_BG)
-        self.root.attributes('-topmost', True)
+        self.root.attributes('-topmost', bool(app_cfg.get("window_always_on_top", False)))
         self.root.lift()
         self.root.focus_force()
         for delay in (80, 220, 600, 1200):
             self.root.after(delay, self._force_startup_size)
-        self.root.after(3000, lambda: self.root.attributes('-topmost', False))
 
         self._window_geometry = _geo
         self._normal_size = (self.W, self.H)
-        self._fullscreen = True
+        self._fullscreen = app_cfg.get("window_mode", "windowed") == "fullscreen"
 
         self._set_layout_metrics(self.W, self.H)
 
@@ -107,6 +108,7 @@ class JarvisUI(OrbMixin, PanelsMixin, ControlsMixin, SettingsMixin):
             "panel_h": 292,
         }
         self.setup_frame = None
+        self.setup_dialog = None
         self.integrations_frame = None
         self.plugins_frame = None
         self.api_entry = None
@@ -140,6 +142,8 @@ class JarvisUI(OrbMixin, PanelsMixin, ControlsMixin, SettingsMixin):
         self.on_ptt_start = None
         self.on_ptt_stop = None
         self.on_wake_toggle = None
+        self.on_new_conversation = None
+        self.on_select_conversation = None
 
         self._current_voice = self._load_voice()
 
@@ -195,23 +199,36 @@ class JarvisUI(OrbMixin, PanelsMixin, ControlsMixin, SettingsMixin):
                             bg=C_BG, highlightthickness=0)
         self.bg.place(x=0, y=0)
 
-        self.log_frame = tk.Frame(self.root, bg="#030e0e",
+        self.log_frame = tk.Frame(self.root, bg=C_PANEL,
                                   highlightbackground=C_MID,
                                   highlightthickness=1)
         self.log_frame.place(x=self.CHAT_X, y=self.CHAT_Y,
                              width=self.CHAT_W, height=self.CHAT_H)
+        self.chat_header = tk.Frame(self.log_frame, bg=C_PANEL, height=42)
+        self.chat_header.pack(fill="x")
+        self.chat_title = tk.Label(
+            self.chat_header, text="AKTİF SOHBET", fg=C_TEXT, bg=C_PANEL,
+            font=font_body_bold(11), anchor="w",
+        )
+        self.chat_title.pack(side="left", padx=14, pady=11)
+        self.chat_context_badge = tk.Label(
+            self.chat_header, text="BAĞLAM AÇIK", fg=C_PRI, bg=C_DIMMER,
+            font=font_body_bold(8), padx=8, pady=4,
+        )
+        self.chat_context_badge.pack(side="right", padx=12, pady=8)
         self.log_text = tk.Text(
-            self.log_frame, fg=C_TEXT, bg="#030e0e",
+            self.log_frame, fg=C_TEXT, bg=C_PANEL,
             insertbackground=C_TEXT, borderwidth=0,
-            wrap="word", font=font_body(12), padx=12, pady=8)
+            wrap="word", font=font_body(12), padx=16, pady=12, spacing3=7)
         self.log_text.pack(fill="both", expand=True)
         self.log_text.configure(state="disabled")
-        self.log_text.tag_config("you", foreground="#d0f0ee")
+        self.log_text.tag_config("you", foreground="#f8fafc")
         self.log_text.tag_config("ai",  foreground=C_PRI)
         self.log_text.tag_config("sys", foreground=C_GOLD)
         self.log_text.tag_config("err", foreground=C_RED)
 
         self._build_input_bar(self.CHAT_W)
+        self._build_conversation_sidebar()
         self._build_mute_button()
         self._build_pause_button()
         self._build_ptt_button()
@@ -248,6 +265,7 @@ class JarvisUI(OrbMixin, PanelsMixin, ControlsMixin, SettingsMixin):
         self._sync_sound_state()
         self.root.after(180, self._play_startup_sfx_once)
         self._kick_brief_refresh()
-        self.root.after(120, self._enter_fullscreen)
+        if self._fullscreen:
+            self.root.after(120, self._enter_fullscreen)
         self._animate()
         self.root.protocol("WM_DELETE_WINDOW", self._shutdown)

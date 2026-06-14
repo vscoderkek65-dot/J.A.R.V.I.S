@@ -1,5 +1,26 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Persistent SQLite conversation history with selectable previous chats.
+- Voice and text commands for creating and switching conversations.
+- Context-aware follow-up media commands such as "YouTube'dan ac".
+- Repetition guards for streaming Gemini and text-agent responses.
+- Windowed desktop mode and a conversation-focused workspace layout.
+
+### Changed
+
+- Improved microphone device selection and text-mode degradation.
+- Hardened provider configuration, logging redaction and public repository CI.
+
+### Fixed
+
+- Prevented malformed provider output from flooding the conversation panel.
+- Corrected OpenAI-compatible configuration and settings validation paths.
+- Removed tracked backup artifacts and repaired public documentation encoding.
+
 All notable changes to J.A.R.V.I.S are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

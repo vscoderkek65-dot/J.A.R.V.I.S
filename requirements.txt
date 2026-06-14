@@ -7,6 +7,8 @@ mcp[cli]
 # ── Core utilities ─────────────────────────────────────────────────────
 requests
 beautifulsoup4
+fastapi
+uvicorn
 psutil
 Pillow
 

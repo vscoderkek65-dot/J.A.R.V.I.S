@@ -16,6 +16,29 @@ DELETE: RiskClass = "delete"
 EXTERNAL: RiskClass = "external"
 
 
+# Tool name sets used by core runtime to short-circuit before invoking
+# an action. OFFLINE_BLOCKED_TOOLS require network; LOCAL_AI_ONLY_TOOLS
+# require a local model endpoint.
+OFFLINE_BLOCKED_TOOLS: frozenset[str] = frozenset({
+    "web_search",
+    "open_and_summarize_url",
+    "research_web",
+    "answer_research_question",
+    "tavily_search",
+    "browse_url",
+    "browser_read_url",
+    "browser_research",
+    "http_check",
+    "ping_host",
+    "dns_lookup",
+})
+
+LOCAL_AI_ONLY_TOOLS: frozenset[str] = frozenset({
+    "test_local_ai",
+    "local_ai_status",
+})
+
+
 SummaryBuilder = Callable[[dict], str]
 
 
@@ -152,6 +175,7 @@ TOOL_RISK_REGISTRY: dict[str, ToolRiskPolicy] = {
     "plugin_status": ToolRiskPolicy("plugin_status", READ, summary_builder=_summary("Plugin durumunu al", "plugin_id")),
     "startup_tracking_status": ToolRiskPolicy("startup_tracking_status", READ, summary_builder=lambda _a: "Baslangic takip durumunu al"),
     "list_tasks": ToolRiskPolicy("list_tasks", READ, summary_builder=_summary("Gorevleri listele", "status_filter")),
+    "dashboard_status": ToolRiskPolicy("dashboard_status", READ, summary_builder=lambda _a: "Yerel dashboard durumunu al"),
     # external read/open
     "get_weather": ToolRiskPolicy("get_weather", EXTERNAL, summary_builder=_summary("Hava durumu al", "location")),
     "browser_control": ToolRiskPolicy("browser_control", EXTERNAL, summary_builder=_summary("Tarayici kontrolu", "action", "url", "query")),
@@ -196,6 +220,8 @@ TOOL_RISK_REGISTRY: dict[str, ToolRiskPolicy] = {
     "browser_submit": ToolRiskPolicy("browser_submit", SEND, requires_approval=True, audit_required=True, summary_builder=_summary("Tarayicida form gonder", "selector_or_text")),
     "shell_run": ToolRiskPolicy("shell_run", EXECUTE, requires_approval=True, audit_required=True, summary_builder=_summary("Terminal komutu calistir", "command")),
     "send_hotkey_safe": ToolRiskPolicy("send_hotkey_safe", EXECUTE, requires_approval=True, audit_required=True, summary_builder=_summary("Aktif pencereye kisayol gonder", "hotkey")),
+    "start_dashboard": ToolRiskPolicy("start_dashboard", EXECUTE, requires_approval=True, audit_required=True, summary_builder=_summary("Yerel dashboard baslat", "port")),
+    "stop_dashboard": ToolRiskPolicy("stop_dashboard", EXECUTE, requires_approval=True, audit_required=True, summary_builder=lambda _a: "Yerel dashboard durdur"),
     "delete_file": ToolRiskPolicy("delete_file", DELETE, requires_approval=True, audit_required=True, summary_builder=lambda a: f"Sil: {a.get('path') or ''}" + (" (recursive)" if a.get("recursive") else "")),
     "delete_calendar_event": ToolRiskPolicy("delete_calendar_event", DELETE, requires_approval=True, audit_required=True, summary_builder=_summary("Takvim etkinligi sil", "title", "start_iso")),
     "complete_reminder": ToolRiskPolicy("complete_reminder", DELETE, requires_approval=True, audit_required=True, summary_builder=_summary("Animsatici tamamla", "reminder_id", "title")),

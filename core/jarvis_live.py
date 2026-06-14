@@ -75,6 +75,7 @@ from actions.weather import get_weather_summary
 from actions.screen_vision import analyze_screen
 from actions.youtube_stats import get_youtube_channel_report
 from actions.local_web import handle_local_web_command
+from actions.local_assistant import parse_local_tool_intent
 from actions.local_tasks import handle_local_task_command
 from actions.local_memory import handle_local_memory_command
 from actions.logging_utils import safe_log_preview
@@ -132,15 +133,12 @@ from actions.safety import (
     guard_tool_call,
     is_approval_text,
     is_cancel_text,
-    local_ai_status,
-    test_local_ai,
     tool_risk_status,
-    internet_available,
     LOCAL_AI_ONLY_TOOLS,
     OFFLINE_BLOCKED_TOOLS,
 )
 from actions.safety import PendingActionManager
-from actions.tasks import (
+from actions.task_system import (
     TaskScheduler,
     create_followup_task,
     list_tasks,
@@ -149,8 +147,10 @@ from actions.tasks import (
     startup_tracking_status,
     enable_startup_tracking,
     disable_startup_tracking,
+    notify_windows,
 )
-from actions.plugins import (
+from memory.conversation_store import ConversationStore
+from actions.plugin_system import (
     list_plugins,
     plugin_status,
     enable_plugin,
@@ -159,9 +159,17 @@ from actions.plugins import (
     discover_plugin_tools,
     call_plugin_tool,
 )
-from actions.agent_config import cloud_agent_config, local_agent_config, local_agent_config_ready, set_agent_mode
-from actions.windows_notify import notify_windows
-from actions.audio_constants import FORMAT, CHANNELS, SEND_SAMPLE_RATE, RECV_SAMPLE_RATE, CHUNK_SIZE
+from actions.local_ai import (
+    cloud_agent_config,
+    local_agent_config,
+    local_agent_config_ready,
+    local_ai_status,
+    test_local_ai,
+    set_agent_mode,
+    internet_available,
+)
+from core.audio_constants import FORMAT, CHANNELS, SEND_SAMPLE_RATE, RECV_SAMPLE_RATE, CHUNK_SIZE
+from core.transcript_guard import merge_streaming_text, sanitize_streaming_transcript
 
 log = get_logger(__name__)
 
@@ -170,7 +178,7 @@ log = get_logger(__name__)
 # ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROMPT_PATH = BASE_DIR / "jarvis_prompt.txt"
-LIVE_MODEL = "models/gemini-2.0-flash-live-001"
+LIVE_MODEL = "gemini-3.1-flash-live-preview"
 CONTROL_TOKEN_RE = re.compile(r"\[[A-Z_]+\]")
 RESEARCH_UI_STATES = {
     "research_web", "answer_research_question", "tavily_search",
@@ -226,6 +234,11 @@ class JarvisLive:
             debug_sink=lambda msg, level="INFO": self.ui.write_debug(msg, level=level),
         )
         self.agent_runtime = AgentRuntime(TOOL_DECLARATIONS, trace_manager=self.trace)
+        self.conversations = ConversationStore()
+        existing_conversations = self.conversations.list()
+        self.active_conversation_id = (
+            existing_conversations[0]["id"] if existing_conversations else self.conversations.create()["id"]
+        )
         self.task_scheduler = TaskScheduler(notify_callback=self._notify_task_result)
         if start_task_scheduler:
             self.task_scheduler.start()
@@ -241,8 +254,11 @@ class JarvisLive:
         self.ui.on_ptt_stop = self._on_ptt_stop
         self.ui.on_stop_command = self._on_stop_command
         self.ui.on_wake_toggle = self._on_wake_toggle
+        self.ui.on_new_conversation = self._new_conversation
+        self.ui.on_select_conversation = self._select_conversation
 
         self._sync_voice_ui()
+        self._refresh_conversation_ui()
         log.info("JarvisLive initialized")
 
     # ------------------------------------------------------------------ #
@@ -301,6 +317,64 @@ class JarvisLive:
 
     def _on_stop_command(self) -> None:
         self._interrupt_audio_from_thread()
+
+    def _refresh_conversation_ui(self) -> None:
+        if hasattr(self.ui, "set_conversations"):
+            self.ui.set_conversations(self.conversations.list(), self.active_conversation_id)
+        if hasattr(self.ui, "load_conversation_messages"):
+            self.ui.load_conversation_messages(
+                self.conversations.messages(self.active_conversation_id, limit=100)
+            )
+
+    def _new_conversation(self) -> str:
+        conversation = self.conversations.create()
+        self.active_conversation_id = conversation["id"]
+        self._refresh_conversation_ui()
+        self.ui.write_log("SYS: Yeni sohbet acildi.")
+        return "Yeni sohbet acildi."
+
+    def _select_conversation(self, conversation_id: str) -> str:
+        if not self.conversations.get(conversation_id):
+            return "Sohbet bulunamadi."
+        self.active_conversation_id = conversation_id
+        self._refresh_conversation_ui()
+        return "Sohbet yuklendi."
+
+    def _handle_conversation_command(self, text: str) -> bool:
+        folded = unicodedata.normalize("NFKD", str(text or ""))
+        folded = "".join(ch for ch in folded if not unicodedata.combining(ch)).casefold()
+        if any(phrase in folded for phrase in ("yeni sohbet", "yeni konusma", "yeni konuşma")):
+            self._new_conversation()
+            return True
+        if "sohbetleri listele" in folded or "eski sohbetler" in folded:
+            rows = self.conversations.list(limit=12)
+            summary = "\n".join(f"{index + 1}. {row['title']}" for index, row in enumerate(rows))
+            self.ui.write_log("SYS: Kayitli sohbetler:\n" + (summary or "Sohbet yok."))
+            return True
+        if any(phrase in folded for phrase in ("onceki sohbete", "onceki konusmaya", "eski sohbete don")):
+            rows = self.conversations.list(limit=20)
+            ids = [row["id"] for row in rows]
+            try:
+                index = ids.index(self.active_conversation_id)
+            except ValueError:
+                index = -1
+            if index + 1 < len(rows):
+                self._select_conversation(rows[index + 1]["id"])
+                self.ui.write_log(f"SYS: Sohbet acildi: {rows[index + 1]['title']}")
+            else:
+                self.ui.write_log("SYS: Daha eski sohbet bulunamadi.")
+            return True
+        match = re.search(r"(\d+)\s*(?:numarali|numaralı)?\s*sohbet", folded)
+        if match:
+            rows = self.conversations.list(limit=50)
+            index = int(match.group(1)) - 1
+            if 0 <= index < len(rows):
+                self._select_conversation(rows[index]["id"])
+                self.ui.write_log(f"SYS: Sohbet acildi: {rows[index]['title']}")
+            else:
+                self.ui.write_log("SYS: Bu numarada sohbet yok.")
+            return True
+        return False
 
     # ------------------------------------------------------------------ #
     # Audio helpers
@@ -494,19 +568,165 @@ class JarvisLive:
     # ------------------------------------------------------------------ #
 
     def _on_text_command(self, text: str) -> None:
+        if self._handle_conversation_command(text):
+            return
+        self.conversations.add_message(self.active_conversation_id, "user", text)
+        self.ui.set_conversations(self.conversations.list(), self.active_conversation_id)
+        self.ui.write_log(f"Siz: {text}")
         self.ui.mark_user_activity(True)
         run_id = self._start_user_run(text, source="text")
         if self._handle_voice_control_command(text, source="text"):
             return
+        folded = (text or "").strip().casefold()
+        if self.pending_actions.has_pending():
+            if is_approval_text(text):
+                result = self.pending_actions.approve()
+                self.trace.log_event(run_id, "pending_action_approved", {"result": result})
+                self.ui.write_log(f"SYS: {result}")
+                self.ui.set_state("LISTENING")
+                return
+            if is_cancel_text(text):
+                result = self.pending_actions.cancel()
+                self.trace.log_event(run_id, "pending_action_cancelled", {"result": result})
+                self.ui.write_log(f"SYS: {result}")
+                self.ui.set_state("LISTENING")
+                return
+            if "onay bekleyen" in folded or "ne bekliyor" in folded or "bekleyen islem" in folded:
+                self.ui.write_log(f"SYS: {self.pending_actions.describe()}")
+                self.ui.set_state("WAITING_APPROVAL")
+                return
         self._auto_learn_from_user_text(text, run_id)
-        if not self.agent_runtime.apply_text_command(
+        local_memory_result = handle_local_memory_command(text)
+        if local_memory_result:
+            self.trace.log_event(
+                run_id,
+                "local_memory_command",
+                {"text": text, "result": local_memory_result},
+            )
+            self._on_text_result(local_memory_result)
+            return
+        local_task_result = handle_local_task_command(text, self.trace)
+        if local_task_result:
+            self.trace.log_event(
+                run_id,
+                "local_task_command",
+                {"text": text, "result": local_task_result},
+            )
+            self._on_text_result(local_task_result)
+            return
+        local_intent = parse_local_tool_intent(
+            text, self.conversations.messages(self.active_conversation_id, limit=20)
+        )
+        if local_intent:
+            self.ui.set_state("THINKING")
+
+            def local_tool_runner() -> None:
+                async def execute() -> None:
+                    response = await self._execute_tool(
+                        SimpleNamespace(
+                            name=local_intent.tool_name,
+                            args=local_intent.args,
+                            id=f"local-{local_intent.tool_name}",
+                        )
+                    )
+                    self._on_text_result(str(response.response.get("result", "")))
+
+                asyncio.run(execute())
+
+            threading.Thread(target=local_tool_runner, name="JarvisLocalTool", daemon=True).start()
+            return
+        local_web_result = self.agent_runtime.execute_local_command(text, handle_local_web_command)
+        if local_web_result:
+            self._on_text_result(local_web_result)
+            return
+
+        self.ui.set_state("THINKING")
+
+        def runner() -> None:
+            asyncio.run(self._run_text_agent(text, run_id))
+
+        threading.Thread(target=runner, name="JarvisTextAgent", daemon=True).start()
+
+    def _text_agent_route(self, text: str):
+        cfg = load_app_config()
+        return self.agent_runtime.choose_model_route(
             text,
-            run_id=run_id,
-            on_result=self._on_text_result,
-        ):
-            self.ui.write_log("SYS: Komut islenemedi - 9Router/REST API kullanilamiyor.")
+            normalize_agent_mode(cfg.get("agent_mode", "hybrid")),
+            cloud_ready=not cloud_agent_config(cfg).missing_fields(),
+            local_ready=local_agent_config_ready(cfg),
+        )
+
+    async def _run_text_agent(self, text: str, run_id: str) -> None:
+        self.agent_runtime.set_current_run(run_id)
+        cfg = load_app_config()
+        route = self._text_agent_route(text)
+        result = ""
+        system_instruction = load_system_prompt()
+        relevant_memory = format_relevant_memories_for_prompt(text, limit=6)
+        if relevant_memory:
+            system_instruction = (
+                f"{system_instruction}\n\n"
+                "<UNTRUSTED_MEMORY_CONTEXT>\n"
+                f"{relevant_memory}\n"
+                "</UNTRUSTED_MEMORY_CONTEXT>"
+            )
+        conversation_messages = self.conversations.messages(self.active_conversation_id, limit=18)
+        if conversation_messages:
+            context = "\n".join(
+                f"{item['role']}: {item['content']}" for item in conversation_messages[:-1]
+            )
+            if context:
+                system_instruction += (
+                    "\n\n[ACTIVE CONVERSATION CONTEXT]\n"
+                    "Bu mesajlar aktif sohbetin onceki turlaridir. Eksiltili ve referansli komutlari "
+                    "bu baglama gore yorumla.\n"
+                    f"{context}\n[/ACTIVE CONVERSATION CONTEXT]"
+                )
+
+        async def execute_tool(name: str, args: dict) -> str:
+            response = await self._execute_tool(
+                SimpleNamespace(name=name, args=args or {}, id=f"text-{name}")
+            )
+            return str(response.response.get("result", ""))
+
+        for route_name in route.order():
+            try:
+                provider_config = (
+                    local_agent_config(cfg, start_foundry=True)
+                    if route_name == "local"
+                    else cloud_agent_config(cfg)
+                )
+                result = await self.agent_runtime.run_text_agent(
+                    provider_config,
+                    system_instruction,
+                    text,
+                    TOOL_DECLARATIONS,
+                    execute_tool,
+                    run_id=run_id,
+                )
+            except Exception as exc:
+                result = f"{route_name} model hatasi: {type(exc).__name__}: {exc}"
+                self.trace.log_error(run_id, f"{route_name}_text_agent", result)
+            if not self._result_looks_like_error(result):
+                break
+
+        if not result:
+            result = "Yazili ajan modeli hazir degil. " + local_ai_status()
+        guarded_result, rejection = sanitize_streaming_transcript(result)
+        if rejection and rejection != "empty":
+            self.trace.log_error(run_id, "text_response_guard", rejection)
+            result = (
+                "Model cevabi bozuk veya tekrarli geldi ve guvenlik filtresi tarafindan durduruldu. "
+                "Komutu yerel araclarla yeniden deneyebilirsin."
+            )
+        else:
+            result = guarded_result
+        self._on_text_result(result)
 
     def _on_text_result(self, text: str) -> None:
+        self.conversations.add_message(self.active_conversation_id, "assistant", text)
+        if hasattr(self.ui, "set_conversations"):
+            self.ui.set_conversations(self.conversations.list(), self.active_conversation_id)
         self.ui.write_log(f"JARVIS: {text}")
         if self._audio_output_available and not self.ui.muted and text:
             self._speak_response(text)
@@ -555,11 +775,10 @@ class JarvisLive:
     async def _execute_tool(self, fc: types.FunctionCall) -> types.FunctionResponse:
         name = fc.name
         args = dict((fc.args or {}).items())
-        tool_decl = next((d for d in TOOL_DECLARATIONS if d["name"] == name), None)
-        policy = classify_tool(name, args, tool_decl)
+        policy = classify_tool(name, args)
 
         if name in OFFLINE_BLOCKED_TOOLS and not internet_available():
-            result = (
+            offline_result = (
                 "Internet baglantisi yok/offline mod aktif. Bu arac dis kaynak gerektiriyor; "
                 "yerel dosya, hafiza, pano ve sistem araclari calismaya devam eder."
             )
@@ -568,10 +787,10 @@ class JarvisLive:
                 "offline_external_blocked",
                 {"tool_name": name, "args": args},
             )
-            return types.FunctionResponse(id=fc.id, name=name, response={"result": result})
+            return types.FunctionResponse(id=fc.id, name=name, response={"result": offline_result})
 
         loop = asyncio.get_event_loop()
-        result = "Tamam."
+        result: str = "Tamam."
         had_exception = False
 
         try:
@@ -1346,6 +1565,22 @@ class JarvisLive:
                 )
                 result = json.dumps(r, ensure_ascii=False)
 
+            # --- Local dashboard ---
+            elif name == "start_dashboard":
+                from dashboard import start_dashboard
+
+                result = start_dashboard(port=int(args.get("port", 8080) or 8080))
+
+            elif name == "stop_dashboard":
+                from dashboard import stop_dashboard
+
+                result = stop_dashboard()
+
+            elif name == "dashboard_status":
+                from dashboard import dashboard_status
+
+                result = dashboard_status()
+
             else:
                 result = f"Bilinmeyen araç: {name}"
 
@@ -1384,7 +1619,7 @@ class JarvisLive:
         if not tool_failed and not waiting_approval and not self.ui.muted:
             self.ui.set_state("LISTENING")
 
-        log.info("tool %s -> %s", name, safe_log_preview(result, limit=300))
+        log.info("tool %s -> %s", name, safe_log_preview(result, limit=300, redact_content_keys=True))
         return types.FunctionResponse(
             id=fc.id, name=name, response={"result": result},
         )
@@ -1408,15 +1643,21 @@ class JarvisLive:
 
     def _open_input_stream(self):
         last_error = None
-        candidates = [None]
+        candidates = []
         pya = self._get_pyaudio()
         try:
+            scored = []
             for index in range(pya.get_device_count()):
                 info = pya.get_device_info_by_index(index)
                 if int(info.get("maxInputChannels", 0) or 0) > 0:
-                    candidates.append(index)
+                    name = str(info.get("name", "") or "").casefold()
+                    virtual = any(token in name for token in ("steam streaming", "stereo kar", "microsoft ses"))
+                    physical = any(token in name for token in ("realtek", "microphone", "mikrofon", "headset"))
+                    scored.append((virtual, not physical, index))
+            candidates.extend(index for _, _, index in sorted(scored))
         except Exception:
             pass
+        candidates.append(None)
         for index in candidates:
             try:
                 kwargs = {}
@@ -1468,7 +1709,8 @@ class JarvisLive:
             detail = f"{type(exc).__name__}: {exc}"
             self._audio_notice(
                 "input_unavailable",
-                "Mikrofon acilamadi; yazili komut ve web arama modu aktif. Windows Ses Ayarlari > Giris cihazini kontrol et.",
+                "Gemini hazir, ancak Windows mikrofonu acilamadi; yazili mod aktif. "
+                "Ayarlar > Gizlilik ve guvenlik > Mikrofon erisimini ve varsayilan giris cihazini kontrol et.",
             )
             return
 
@@ -1494,7 +1736,7 @@ class JarvisLive:
                 if not jarvis_speaking and self.voice_gate.is_open():
                     await self.out_queue.put({"data": data, "mime_type": "audio/pcm"})
         except Exception as e:
-            print(f"[JARVIS] ❌ Mikrofon: {e}")
+            log.error("[JARVIS] Mikrofon: %s", e)
             self._audio_input_available = False
             self._audio_notice(
                 "input_failed",
@@ -1511,8 +1753,8 @@ class JarvisLive:
     # ------------------------------------------------------------------ #
 
     async def _receive_audio(self) -> None:
-        print("[JARVIS] 👂 Alım başladı")
-        out_buf, in_buf = [], []
+        log.info("[JARVIS] Ses alimi basladi")
+        out_text, in_text = "", ""
         output_noise = False
         output_noise_samples = []
         try:
@@ -1533,21 +1775,33 @@ class JarvisLive:
                                     if len(output_noise_samples) < 4:
                                         output_noise_samples.append(raw_txt)
                                 if txt:
-                                    out_buf.append(txt)
+                                    out_text = merge_streaming_text(out_text, txt)
 
                         if sc.input_transcription and sc.input_transcription.text:
                             txt = sc.input_transcription.text.strip()
                             if txt:
                                 if not self._voice_run_id:
                                     self._voice_run_id = self._start_user_run("voice input", source="voice")
-                                in_buf.append(txt)
+                                in_text = merge_streaming_text(in_text, txt)
                                 self.ui.mark_user_activity(True)
 
                         if sc.turn_complete:
                             self.set_speaking(False)
-                            full_in = " ".join(in_buf).strip()
+                            full_in, input_rejection = sanitize_streaming_transcript(in_text)
+                            if input_rejection and input_rejection != "empty":
+                                self.ui.write_debug(
+                                    f"Ses girdisi tekrar filtresine takildi: {input_rejection}",
+                                    level="WARN",
+                                )
                             voice_control_handled = False
                             if full_in:
+                                if self._handle_conversation_command(full_in):
+                                    in_text = ""
+                                    out_text = ""
+                                    continue
+                                self.conversations.add_message(
+                                    self.active_conversation_id, "user", full_in
+                                )
                                 if not self._voice_run_id:
                                     self._voice_run_id = self._start_user_run(full_in, source="voice")
                                 self.trace.log_event(self._voice_run_id, "voice_transcript", {"text": full_in})
@@ -1557,10 +1811,18 @@ class JarvisLive:
                                     self.trace.log_event(self._voice_run_id, "voice_control_command", {"text": full_in})
                                 else:
                                     self._auto_learn_from_user_text(full_in, self._voice_run_id)
-                                in_buf = []
+                            in_text = ""
 
-                            full_out = " ".join(out_buf).strip()
+                            full_out, output_rejection = sanitize_streaming_transcript(out_text)
+                            if output_rejection and output_rejection != "empty":
+                                self.ui.write_debug(
+                                    f"Gemini transkripti tekrar filtresine takildi: {output_rejection}",
+                                    level="WARN",
+                                )
                             if full_out and not voice_control_handled:
+                                self.conversations.add_message(
+                                    self.active_conversation_id, "assistant", full_out
+                                )
                                 if self._voice_run_id:
                                     self.trace.log_event(self._voice_run_id, "voice_agent_result", {"text": full_out})
                                 saved_summary = save_conversation_summary(full_in, full_out, self._voice_run_id)
@@ -1587,21 +1849,21 @@ class JarvisLive:
                                             level="WARN",
                                         )
                                     self.ui.set_state("ERROR")
-                                out_buf = []
-                                output_noise = False
-                                output_noise_samples = []
-                                self._voice_run_id = ""
+                            out_text = ""
+                            output_noise = False
+                            output_noise_samples = []
+                            self._voice_run_id = ""
 
                     if response.tool_call:
                         fn_responses = []
                         for fc in response.tool_call.function_calls:
-                            print(f"[JARVIS] 📞 {fc.name}")
+                            log.info("[JARVIS] Tool call: %s", fc.name)
                             fr = await self._execute_tool(fc)
                             fn_responses.append(fr)
                         await self.session.send_tool_response(function_responses=fn_responses)
 
         except Exception as e:
-            print(f"[JARVIS] ❌ Alım: {e}")
+            log.error("[JARVIS] Ses alimi: %s", e)
             self.trace.log_error(
                 self._voice_run_id or self.trace.current_run_id,
                 "receive_audio",
@@ -1614,14 +1876,14 @@ class JarvisLive:
     # ------------------------------------------------------------------ #
 
     async def _play_audio(self) -> None:
-        print("[JARVIS] 🔊 Ses çalma başladı")
+        log.info("[JARVIS] Ses cikisi basladi")
         try:
             stream = await asyncio.to_thread(self._open_output_stream)
             self._audio_output_available = True
         except Exception as exc:
             self._audio_output_available = False
             detail = f"{type(exc).__name__}: {exc}"
-            print(f"[JARVIS] Ses cikisi devre disi: {detail}")
+            log.warning("[JARVIS] Ses cikisi devre disi: %s", detail)
             self._audio_notice(
                 "output_unavailable",
                 "Ses cikisi acilamadi; yanitlar metin olarak loglanacak. Windows Ses Ayarlari > Cikis cihazini kontrol et.",
@@ -1634,7 +1896,7 @@ class JarvisLive:
                 self.set_speaking(True)
                 await asyncio.to_thread(stream.write, chunk)
         except Exception as e:
-            print(f"[JARVIS] ❌ Ses: {e}")
+            log.error("[JARVIS] Ses cikisi: %s", e)
             self._audio_output_available = False
             self._audio_notice(
                 "output_failed",
@@ -1676,7 +1938,7 @@ class JarvisLive:
             )
 
             try:
-                print("[JARVIS] 🔌 Bağlanıyor...")
+                log.info("[JARVIS] Gemini Live baglantisi kuruluyor")
                 self.ui.set_state("THINKING")
                 config = self._build_config()
                 async with (
@@ -1688,7 +1950,7 @@ class JarvisLive:
                     self.audio_in_queue = asyncio.Queue()
                     self.out_queue = asyncio.Queue(maxsize=10)
 
-                    print("[JARVIS] ✅ Bağlandı.")
+                    log.info("[JARVIS] Gemini Live baglandi")
                     self.ui.set_state("LISTENING")
                     self.ui.write_log("SYS: JARVIS hazir. Dinliyorum...")
 
@@ -1711,13 +1973,13 @@ class JarvisLive:
                     f"ERR: JARVIS baglantisi kesildi veya internete ulasilamiyor - {detail}"
                 )
                 self.ui.set_state("ERROR")
-                print("[JARVIS] 🔄 3 saniyede yeniden bağlanıyor...")
+                log.info("[JARVIS] 3 saniye sonra yeniden baglanilacak")
                 await asyncio.sleep(3)
 
     def _build_config(self) -> types.LiveConnectConfig:
         system_instruction = load_system_prompt()
-        memory_prompt = format_memory_for_prompt(limit=12, max_chars=4000)
-        relevant = format_relevant_memories_for_prompt("", limit=6, max_chars=3000)
+        memory_prompt = format_memory_for_prompt(load_memory())
+        relevant = format_relevant_memories_for_prompt("", limit=6)
         extra = "\n".join(filter(None, [memory_prompt, relevant]))
         if extra:
             system_instruction = f"{system_instruction}\n\n--- Hafiza ---\n{extra}"
@@ -1726,16 +1988,21 @@ class JarvisLive:
         cfg = load_app_config()
         voice_mode = normalize_voice_mode(cfg.get("voice_input_mode", "ptt_wake"))
 
-        return types.LiveConnectConfig(
-            response_modalities=["TEXT", "AUDIO"],
+        config_kwargs = dict(
+            response_modalities=["AUDIO"],
             system_instruction=system_instruction,
             tools=[types.Tool(function_declarations=tools)],
-            session_resumption=True,
-            context_window_compression=types.ContextWindowCompression(
+        )
+        session_resumption_type = getattr(types, "SessionResumptionConfig", None)
+        if session_resumption_type is not None:
+            config_kwargs["session_resumption"] = session_resumption_type()
+        compression_type = getattr(types, "ContextWindowCompression", None)
+        if compression_type is not None:
+            config_kwargs["context_window_compression"] = compression_type(
                 should_compress=True,
                 trigger_tokens=8000,
-            ),
-        )
+            )
+        return types.LiveConnectConfig(**config_kwargs)
 
     # ------------------------------------------------------------------ #
     # Audio notice (debounced log + UI)
@@ -1751,6 +2018,18 @@ class JarvisLive:
 
     @staticmethod
     def _format_exception_summary(exc: BaseException) -> str:
+        if isinstance(exc, BaseExceptionGroup):
+            leaves = []
+
+            def collect(group: BaseException) -> None:
+                if isinstance(group, BaseExceptionGroup):
+                    for child in group.exceptions:
+                        collect(child)
+                else:
+                    leaves.append(f"{type(group).__name__}: {str(group).replace(chr(10), ' ')[:180]}")
+
+            collect(exc)
+            return " | ".join(leaves[:3]) or f"{type(exc).__name__}: TaskGroup hatasi"
         message = str(exc)
         snippet = message.replace("\n", " ")[:220]
         return f"{type(exc).__name__}: {snippet}"
@@ -1867,7 +2146,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             asyncio.run(jarvis.run())
         except KeyboardInterrupt:
-            print("\n🔴 Kapatılıyor...")
+            print("\n[JARVIS] Kapatiliyor...")
 
     threading.Thread(target=runner, daemon=True).start()
     ui.root.mainloop()

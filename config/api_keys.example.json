@@ -33,5 +33,9 @@
   "wake_word": "jarvis",
   "porcupine_access_key": "",
   "vosk_model_path": "",
-  "wake_capture_seconds": 8
+  "wake_capture_seconds": 8,
+  "window_mode": "windowed",
+  "window_width": 1360,
+  "window_height": 860,
+  "window_always_on_top": false
 }

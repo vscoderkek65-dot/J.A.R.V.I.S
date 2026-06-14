@@ -356,7 +356,7 @@ def browser_research(query: str, max_pages: int = 5, visible: bool = False) -> s
         for link in ranked:
             if len(docs) >= max_pages:
                 break
-            if "bing.com" in urllib.parse.urlparse(link.href).netloc.casefold():
+            if urllib.parse.urlparse(link.href).netloc.lower().endswith("bing.com"):
                 continue
             if _keyword_score(link.text, link.href, query) <= 0 and len(docs) > 0:
                 continue

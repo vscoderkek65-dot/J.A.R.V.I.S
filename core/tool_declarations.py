@@ -469,4 +469,25 @@ TOOL_DECLARATIONS: list[dict[str, Any]] = [
             "required": ["url"],
         },
     },
+    # --- Dashboard ---
+    {
+        "name": "start_dashboard",
+        "description": "Web dashboard'i baslatir. localhost:8080 adresinden erisilebilir.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "port": {"type": "NUMBER", "description": "Port numarasi (varsayilan 8080)"},
+            },
+        },
+    },
+    {
+        "name": "stop_dashboard",
+        "description": "Web dashboard'i durdurur.",
+        "parameters": {"type": "OBJECT", "properties": {}},
+    },
+    {
+        "name": "dashboard_status",
+        "description": "Web dashboard'in calisip calismadigini kontrol eder.",
+        "parameters": {"type": "OBJECT", "properties": {}},
+    },
 ]

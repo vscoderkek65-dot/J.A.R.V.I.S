@@ -17,6 +17,70 @@ from actions.platform_utils import open_url
 USER_AGENT = "Mozilla/5.0 JARVIS Desktop Research"
 MIN_TEXT_CHARS = 80
 
+# ── URL Safety ─────────────────────────────────────────────────────────
+# Allowlist of safe external hosts for research results
+SAFE_EXTERNAL_HOSTS = frozenset({
+    "wikipedia.org", "github.com", "stackoverflow.com", "stackexchange.com",
+    "reddit.com", "medium.com", "linkedin.com", "youtube.com", "twitter.com",
+    "x.com", "bbc.com", "bbc.co.uk", "cnn.com", "reuters.com", "apnews.com",
+    "nytimes.com", "wsj.com", "bloomberg.com", "forbes.com", "techcrunch.com",
+    "theverge.com", "wired.com", "arstechnica.com", "zdnet.com", "cnet.com",
+    "news.ycombinator.com", "producthunt.com", "gitlab.com", "bitbucket.org",
+    "npmjs.com", "pypi.org", "docker.com", "docker.io", "kubernetes.io",
+    "aws.amazon.com", "docs.microsoft.com", "learn.microsoft.com",
+    "developer.mozilla.org", "geeksforgeeks.org", "freecodecamp.org",
+})
+
+# Dangerous schemes and hosts that indicate SSRF / phishing
+BLOCKED_SCHEMES = frozenset({
+    "file", "ftp", "ldap", "ldaps", "gopher", "dict", "telnet",
+    "smb", "nfs", "data", "javascript", "vbscript",
+})
+
+# Internal / loopback networks to block
+PRIVATE_NET_PATTERNS = (
+    "127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
+    "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+    "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+    "192.168.", "169.254.", "0.0.0.0",
+)
+
+
+def _is_safe_url(url: str) -> bool:
+    """Validate a URL is safe for external requests (SSRF / open redirect protection)."""
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
+    host = parsed.netloc.lower()
+
+    # Must be http or https
+    if scheme not in {"http", "https"}:
+        return False
+
+    # Block dangerous schemes
+    if any(url.lower().startswith(bs) for bs in BLOCKED_SCHEMES):
+        return False
+
+    # Strip port and credentials for host check
+    host_clean = host.split(":")[0].split("@")[-1] if "@" in host else host.split(":")[0]
+
+    # Block private / loopback IPs
+    if host_clean and host_clean[0].isdigit():
+        for pattern in PRIVATE_NET_PATTERNS:
+            if host_clean.startswith(pattern):
+                return False
+
+    # Block localhost variants
+    local_hosts = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    if host_clean in local_hosts or host_clean.startswith("127."):
+        return False
+
+    return True
+
+
+def _is_external_redirect_url(url: str, search_engine_host: str) -> bool:
+    """Check if a URL is an external (non-search-engine) link from a redirect wrapper."""
+    return _is_safe_url(url) and search_engine_host not in urlparse(url).netloc.lower()
+
 
 @dataclass
 class Candidate:
@@ -61,12 +125,9 @@ def _fold(value: str) -> str:
 
 
 def _strip_html(html: str) -> str:
-    html = re.sub(r"(?is)<script.*?</script>", " ", html or "")
-    html = re.sub(r"(?is)<style.*?</style>", " ", html)
-    html = re.sub(r"(?is)<noscript.*?</noscript>", " ", html)
-    html = re.sub(r"(?is)<[^>]+>", " ", html)
-    html = unescape(html)
-    return _normalize_spaces(html)
+    from actions.html_safety import strip_html as _safe_strip
+
+    return _safe_strip(html)
 
 
 def _strip_reader_metadata(text: str) -> str:
@@ -542,7 +603,10 @@ class ResearchAgent:
                 uddg = parse_qs(parsed.query).get("uddg", [""])[0]
                 if uddg:
                     href = urllib.parse.unquote(uddg)
-            if "duckduckgo.com" in urlparse(href).netloc:
+                    parsed = urlparse(href)
+            if parsed.netloc.lower().endswith("duckduckgo.com"):
+                continue
+            if not _is_safe_url(href):
                 continue
             results.append((label, href))
             if len(results) >= limit:
@@ -627,7 +691,9 @@ class ResearchAgent:
         for label, href in links:
             parsed = urlparse(href)
             host = parsed.netloc.lower()
-            if "yahoo.com" in host:
+            if host.endswith("yahoo.com") or "." + host.endswith(".yahoo.com"):
+                continue
+            if not _is_safe_url(href):
                 continue
             if parsed.scheme in {"http", "https"} and label:
                 results.append((label, href))

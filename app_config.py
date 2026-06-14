@@ -45,6 +45,10 @@ DEFAULT_CONFIG = {
     "porcupine_access_key": "",
     "vosk_model_path": "",
     "wake_capture_seconds": 8,
+    "window_mode": "windowed",
+    "window_width": 1360,
+    "window_height": 860,
+    "window_always_on_top": False,
 }
 
 
@@ -104,6 +108,18 @@ def normalize_app_config(config: dict, raw: dict | None = None) -> dict:
         config["wake_capture_seconds"] = max(2, min(30, int(config.get("wake_capture_seconds", 8) or 8)))
     except Exception:
         config["wake_capture_seconds"] = 8
+    config["window_mode"] = str(config.get("window_mode", "windowed") or "windowed").strip().casefold()
+    if config["window_mode"] not in {"windowed", "fullscreen"}:
+        config["window_mode"] = "windowed"
+    for key, default, minimum in (
+        ("window_width", 1360, 960),
+        ("window_height", 860, 680),
+    ):
+        try:
+            config[key] = max(minimum, int(config.get(key, default) or default))
+        except Exception:
+            config[key] = default
+    config["window_always_on_top"] = _truthy(config.get("window_always_on_top", False))
 
     if not str(config.get("cloud_base_url", "") or "").strip():
         config["cloud_base_url"] = str(config.get("ninerouter_base_url", "") or "")

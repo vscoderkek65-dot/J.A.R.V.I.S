@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/vscoderkek65-dot/J.A.R.V.I.S/security/advisories/new
+    about: Report security issues privately. Do not publish credentials or exploits.

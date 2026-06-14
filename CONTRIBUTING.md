@@ -1,104 +1,52 @@
 # Contributing to J.A.R.V.I.S
 
-Thank you for your interest in contributing! Here's how you can help.
+## Development Setup
 
----
+```powershell
+git clone https://github.com/vscoderkek65-dot/J.A.R.V.I.S.git
+cd J.A.R.V.I.S
+git checkout -b feat/short-description
+powershell -ExecutionPolicy Bypass -File .\setup_windows.ps1
+```
 
-## 🧪 Local Checks
+## Required Checks
 
-Run the acceptance gate before submitting any change:
+Before opening a pull request:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\test_acceptance.ps1
 ```
 
-For live Windows smoke validation:
+For UI, audio, browser or Windows integration changes:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\run_windows.ps1 -Smoke -SmokeTimeoutSeconds 90 -SmokeApp explorer
 ```
 
----
+## Safety Requirements
 
-## 📝 Commit Hygiene
+- Every new tool must be listed in the central safety registry.
+- `write`, `send`, `execute` and `delete` operations require explicit approval.
+- Unknown tools and plugins remain blocked by default.
+- Web, file, clipboard, OCR and MCP output must remain untrusted content.
+- Secrets, tokens, OAuth caches, SQLite databases and runtime logs must never be committed.
 
-- **Keep runtime data out of git.**
-- Do not commit `config/api_keys.json`, `*.sqlite3`, traces, audit logs, smoke
-  reports, or plugin state files.
-- Follow the [Conventional Commits](https://www.conventionalcommits.org/) style:
-  - `feat:` — new capability
-  - `fix:` — bug fix
-  - `refactor:` — code restructuring
-  - `docs:` — documentation
-  - `test:` — test changes
-  - `ci:` — CI/CD configuration
-  - `chore:` — maintenance tasks
-- Prefer small, focused commits over large monolithic ones.
-- Preserve existing tool names and config compatibility unless a migration is
-  explicitly documented.
+## Code and Commit Standards
 
----
+- Keep changes focused and include regression tests.
+- Preserve public tool names and config compatibility unless a migration is documented.
+- Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`,
+  `ci:` or `chore:`.
+- Update `CHANGELOG.md` under `Unreleased` for user-facing changes.
+- Do not use `--no-verify` or force-push the default branch.
 
-## 🛡️ Safety Requirements
+## Pull Requests
 
-Any new tool **must** be registered in the central safety registry with a
-risk class. Unknown tools are blocked by default.
+Describe:
 
-For high-risk operations:
-- Add an entry to `TOOL_RISK_REGISTRY` with the appropriate risk level
-- Ensure the approval workflow is triggered
-- Log all invocations through the audit system
+1. What changed and why.
+2. Security or compatibility impact.
+3. Commands used to validate the change.
+4. Known limitations or follow-up work.
 
-See `actions/safety.py` for the existing risk policies and registry format.
-
----
-
-## 🧪 Testing
-
-- Add unit tests in the `tests/` directory following existing patterns
-- Tests should be self-contained and not require live API keys
-- Run tests locally: `python -m unittest discover -s tests -v`
-- For integration tests, use the smoke test framework
-
----
-
-## 🔧 Development Setup
-
-```powershell
-# 1. Fork and clone the repository
-git clone https://github.com/your-username/J.A.R.V.I.S.git
-cd J.A.R.V.I.S
-
-# 2. Create a feature branch
-git checkout -b feat/your-feature
-
-# 3. Set up the environment
-powershell -ExecutionPolicy Bypass -File .\setup_windows.ps1
-
-# 4. Make your changes and test
-powershell -ExecutionPolicy Bypass -File .\test_acceptance.ps1
-
-# 5. Commit and push
-git add .
-git commit -m "feat: your feature description"
-git push origin feat/your-feature
-
-# 6. Open a Pull Request
-```
-
----
-
-## 📋 Pull Request Checklist
-
-- [ ] Acceptance gate passes (compileall + tests + secret scan)
-- [ ] New tools have safety registry entries
-- [ ] No runtime data or secrets committed
-- [ ] CHANGELOG.md updated under "Unreleased" section
-- [ ] Documentation updated if API or behavior changed
-
----
-
-## 📖 Code of Conduct
-
-Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md). All
-contributors are expected to create a welcoming and respectful environment.
+By contributing, you agree to follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

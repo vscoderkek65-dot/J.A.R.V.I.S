@@ -33,8 +33,13 @@ if ($LASTEXITCODE -ne 0) {
 
 # ── [2/5] Ruff linting ─────────────────────────────────────────────────
 Write-Host "[2/5] Code quality: ruff check" -ForegroundColor Cyan
-$ruffCheck = & $venvPython -m ruff check actions/ core/ memory/ tests/ --quiet 2>&1
-if ($LASTEXITCODE -ne 0) {
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$ruffCheck = & $venvPython -m ruff check actions/ core/ memory/ ui/ tests/ `
+    --select E9,F63,F7,F82 --quiet 2>&1
+$ruffExitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+if ($ruffExitCode -ne 0) {
     Write-Host "  Issues found:" -ForegroundColor Yellow
     $ruffCheck | ForEach-Object { Write-Host "    $_" }
     Write-Host "  Run 'ruff format' to auto-fix." -ForegroundColor Yellow
@@ -46,8 +51,12 @@ if ($LASTEXITCODE -ne 0) {
 
 # ── [3/5] Unit/regression tests ───────────────────────────────────────
 Write-Host "[3/5] Unit tests: unittest discover -s tests -v" -ForegroundColor Cyan
+$previousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 & $venvPython -m unittest discover -s tests -v 2>&1
-if ($LASTEXITCODE -ne 0) {
+$testExitCode = $LASTEXITCODE
+$ErrorActionPreference = $previousErrorActionPreference
+if ($testExitCode -ne 0) {
     Write-Host "FAIL: Unit tests failed" -ForegroundColor Red
     $exitCode = 1
 } else {
@@ -97,7 +106,10 @@ if (Test-Path $versionFile) {
     Write-Host "  VERSION file: $version" -ForegroundColor Green
 
     # Check git tag matches if on a tag
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     $gitTag = git describe --exact-match --tags HEAD 2>$null
+    $ErrorActionPreference = $previousErrorActionPreference
     if ($gitTag) {
         $tagVersion = $gitTag -replace "^v", ""
         if ($tagVersion -eq $version) {

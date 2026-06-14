@@ -1,199 +1,145 @@
 <div align="center">
 
-# 🤖 J.A.R.V.I.S
+# J.A.R.V.I.S
 
 **Just A Rather Very Intelligent System**
 
-*Windows/macOS desktop assistant powered by Gemini, OpenAI, and local AI*
+Windows 10/11 icin guvenli, sesli ve genisletilebilir masaustu AI asistani.
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue?logo=python)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![CI](https://github.com/vscoderkek65-dot/J.A.R.V.I.S/actions/workflows/ci.yml/badge.svg)](https://github.com/vscoderkek65-dot/J.A.R.V.I.S/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/vscoderkek65-dot/J.A.R.V.I.S/actions/workflows/codeql.yml/badge.svg)](https://github.com/vscoderkek65-dot/J.A.R.V.I.S/actions/workflows/codeql.yml)
-[![Release](https://img.shields.io/github/v/release/vscoderkek65-dot/J.A.R.V.I.S)](https://github.com/vscoderkek65-dot/J.A.R.V.I.S/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)](README.md)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-2ea44f)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D4?logo=windows)](README.md)
 
 </div>
 
----
+## Genel Bakis
 
-## ✨ Overview
+J.A.R.V.I.S; metin ve ses komutlarini, masaustu otomasyonunu, web
+arastirmasini, kalici sohbet hafizasini ve MCP tabanli eklentileri tek bir
+Tkinter uygulamasinda birlestirir.
 
-J.A.R.V.I.S is a desktop AI assistant that combines **voice interaction**, **text-based AI**, **web research**, **desktop automation**, **memory**, and **task management** into a single cyberpunk-themed UI.
+Proje varsayilan olarak guvenli calisir. Dosya yazma/silme, mesaj gonderme,
+uygulama kontrolu ve benzeri yan etkili islemler acik kullanici onayi olmadan
+uygulanmaz.
 
-It supports three operating modes:
+## Temel Yetenekler
 
-| Mode | Description |
-|------|-------------|
-| **Cloud** | Uses OpenAI / 9Router API for intelligent responses |
-| **Local** | Runs entirely offline via Foundry Local or any OpenAI-compatible local endpoint |
-| **Hybrid** | Smart routing — local for fast/offline tasks, cloud for web research and complex planning |
+- Gemini Live ile gercek zamanli sesli etkilesim
+- OpenAI-compatible cloud ve yerel model destegi
+- `cloud`, `local` ve `hybrid` calisma modlari
+- Playwright tabanli Browser Agent ve cok kaynakli web arastirmasi
+- Dosya, pano, pencere, uygulama ve ekran araclari
+- SQLite tabanli sohbet gecmisi, gorevler ve uzun sureli hafiza
+- Eski sohbeti secme, yeni sohbet acma ve baglamsal takip komutlari
+- Outlook/Google takvim ve hatirlatma entegrasyonlari
+- MCP tabanli izin kontrollu plugin mimarisi
+- Merkezi risk siniflandirmasi, onay kapisi, audit ve trace loglari
 
-### Key Capabilities
+## Hizli Baslangic
 
-- 🎤 **Gemini Live Voice** — real-time voice conversation with Gemini 2.5 Flash
-- 💬 **Text Agent** — OpenAI-compatible chat for typed commands
-- 🌐 **Web Research** — multi-engine search with Tavily, Google News, Bing, DuckDuckGo & more
-- 🖥️ **Desktop Control** — window management, hotkeys, app launching, clipboard
-- 📁 **File Operations** — read, write, search, organize files with safety gates
-- 🧠 **Memory System** — long-term SQLite + JSON memory with auto-learning
-- 📅 **Calendar & Tasks** — Outlook/Google Calendar integration + follow-up task scheduler
-- 📱 **WhatsApp** — send messages and manage contacts
-- 🔌 **Plugin System** — MCP-based extensibility with permission controls
-- 🛡️ **Security First** — every action is classified, risky ones require approval
+Gereksinimler:
 
----
-
-## 🚀 Quick Start
-
-### Windows
+- Windows 10 veya Windows 11
+- Python 3.11 veya daha yeni
+- PowerShell 5.1 veya PowerShell 7
 
 ```powershell
-# 1. Install
+git clone https://github.com/vscoderkek65-dot/J.A.R.V.I.S.git
+cd J.A.R.V.I.S
 powershell -ExecutionPolicy Bypass -File .\setup_windows.ps1
-
-# 2. Configure API keys (edit config/api_keys.json)
-#    Or use the setup dialog when the app launches.
-
-# 3. Run
 powershell -ExecutionPolicy Bypass -File .\run_windows.ps1
 ```
 
-### macOS
+Ilk kurulum `config/api_keys.example.json` dosyasindan yerel
+`config/api_keys.json` olusturur. Gercek anahtar dosyasi Git tarafindan
+izlenmez.
 
-```bash
-chmod +x setup.sh && ./setup.sh
-```
+## Model Yapilandirmasi
 
-> The setup script creates a `venv`, installs dependencies, and copies
-> `config/api_keys.example.json` to `config/api_keys.json`.
+Arayuzdeki API ayarlari ekranindan bir mod secilebilir:
 
----
+| Mod | Davranis |
+| --- | --- |
+| `cloud` | OpenAI-compatible uzak endpoint kullanir |
+| `local` | Foundry Local veya yerel OpenAI-compatible endpoint kullanir |
+| `hybrid` | Yerel isleri local, web ve karmasik planlamayi cloud modele yonlendirir |
 
-## ⚙️ Configuration
+ChatGPT Plus veya Business aboneligi model API anahtari yerine gecmez.
+Uygulama icin saglayicinin verdigi API anahtari ya da OpenAI-compatible
+endpoint gerekir.
 
-Edit `config/api_keys.json` after first run:
+9Router kullanan mevcut kurulumlar icin tipik base URL:
+`https://api.9router.com/v1`. Saglayiciniz farkli bir URL veriyorsa panelde
+onu kullanin.
 
-```json
-{
-  "agent_mode": "hybrid",
-  "cloud_base_url": "https://api.9router.com/v1",
-  "cloud_model": "gpt-4o",
-  "cloud_api_key": "<your-key>",
-  "local_base_url": "http://localhost:1234/v1",
-  "local_model": "",
-  "local_api_key": "",
-  "voice_input_mode": "ptt",
-  "wake_word_enabled": false
-}
-```
-
-### Agent Modes
-
-| Setting    | Behavior |
-|------------|----------|
-| `cloud`    | All requests go to the cloud API |
-| `local`    | All requests go to the local endpoint |
-| `hybrid`   | Smart routing based on task and connectivity |
-
-### Voice Input Modes
-
-| Setting | Behavior |
-|---------|----------|
-| `ptt`   | Push-to-talk (hold to speak) |
-| `wake`  | Wake-word activated ("Jarvis" / "Computer") |
-| `live`  | Gemini Live streaming (always listening) |
-
----
-
-## 🧪 Smoke Testing
+## Opsiyonel Bilesenler
 
 ```powershell
-# Quick acceptance gate (compile + unit tests + secret scan)
-powershell -ExecutionPolicy Bypass -File .\test_acceptance.ps1
-
-# Full live smoke test (requires working API keys)
-powershell -ExecutionPolicy Bypass -File .\run_windows.ps1 -Smoke -SmokeTimeoutSeconds 90 -SmokeApp explorer
-```
-
-Smoke reports are saved to `memory/smoke/` (excluded from git).
-
----
-
-## 🛡️ Security Model
-
-J.A.R.V.I.S uses a **central safety registry** that classifies every tool:
-
-| Risk Level | Requires Approval | Examples |
-|------------|-------------------|----------|
-| `read`     | ❌ No             | Read files, clipboard, system info |
-| `external` | ❌ No             | Web searches, URL fetching |
-| `write`    | ✅ Yes            | Create/modify files, set clipboard |
-| `send`     | ✅ Yes            | WhatsApp, email |
-| `execute`  | ✅ Yes            | Shell commands, hotkeys, browser automation |
-| `delete`   | ✅ Yes            | Delete files, calendar events |
-
-All high-risk operations:
-- ⏳ Pause for user approval
-- 📝 Log to the audit trail (with secret redaction)
-- 🚫 Block untrusted content from being treated as instructions
-
----
-
-## 📂 Project Structure
-
-```
-J.A.R.V.I.S/
-├── actions/            # Tool implementations (browser, files, desktop, etc.)
-├── config/             # API keys (gitignored) and example config
-├── core/               # Core engine: agent runtime, LLM client, live pipeline
-├── docs/               # Architecture, roadmap, release notes
-├── Fonts/              # Grift font family for UI
-├── helpers/            # macOS Swift helpers (calendar, screen capture)
-├── memory/             # SQLite + JSON storage (gitignored runtime data)
-├── plugins/            # MCP plugin manifests
-├── SFX/                # Sound effects
-├── tests/              # Unit and integration tests
-├── main.py             # Entry point
-├── ui.py               # Tkinter UI (ORB animation, panels, dialogs)
-├── app_config.py       # Configuration loader
-├── VERSION             # Current version (semver)
-└── CHANGELOG.md        # Release history
-```
-
----
-
-## 🔌 Optional Dependencies
-
-```powershell
-# Playwright (browser automation)
-.\venv\Scripts\python.exe -m playwright install chromium
-
-# PyAudio (microphone input)
+# Mikrofon / PyAudio
 .\venv\Scripts\python.exe -m pip install -r requirements-voice.txt
 
-# Tesseract OCR (screen text recognition)
+# Playwright Chromium
+.\venv\Scripts\python.exe -m playwright install chromium
+
+# Tesseract OCR
 winget install UB-Mannheim.TesseractOCR
 ```
 
----
+Mikrofon veya ses paketi kullanilamazsa uygulama kapanmaz; kalici yazili moda
+gecer.
 
-## 🤝 Contributing
+## Guvenlik Modeli
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for our contribution guidelines.
+| Risk sinifi | Varsayilan onay | Ornek |
+| --- | --- | --- |
+| `read` | Gerekmez | Dosya okuma, sistem bilgisi |
+| `external` | Gerekmez | Salt okunur web arastirmasi |
+| `write` | Gerekir | Dosya veya pano yazma |
+| `send` | Gerekir | Mesaj veya form gonderme |
+| `execute` | Gerekir | Uygulama, hotkey, browser kontrolu |
+| `delete` | Gerekir | Dosya veya kayit silme |
 
-- All new tools **must** be registered in the safety registry
-- Run `.\test_acceptance.ps1` before submitting changes
-- Never commit API keys or runtime databases
+Web, dosya, pano, OCR ve plugin ciktilari guvenilmeyen icerik olarak
+isaretlenir. Bilinmeyen tool ve plugin cagrilari varsayilan olarak engellenir.
 
----
+Guvenlik aciklarini public issue olarak paylasmayin. Ayrintilar icin
+[SECURITY.md](SECURITY.md) dosyasina bakin.
 
-## 📜 License
+## Test ve Kalite Kapisi
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+```powershell
+# Static parse, Ruff, unit test, secret scan ve surum kontrolu
+powershell -ExecutionPolicy Bypass -File .\test_acceptance.ps1
 
----
+# Gercek Windows UI smoke
+powershell -ExecutionPolicy Bypass -File .\run_windows.ps1 -Smoke -SmokeTimeoutSeconds 90 -SmokeApp explorer
+```
 
-<div align="center">
-  <sub>Built with Python, Tkinter, and too much coffee ☕</sub>
-</div>
+Smoke, trace, audit ve SQLite runtime ciktilari `memory/` altinda tutulur ve
+Git'e eklenmez.
+
+## Proje Yapisi
+
+```text
+actions/       Tool ve entegrasyon implementasyonlari
+config/        Ornek yapilandirma
+core/          Ajan, model, ses ve dispatch cekirdegi
+docs/          Mimari ve yol haritasi
+memory/        Kalici store kodu ve gitignored runtime verisi
+plugins/       MCP plugin manifestleri
+tests/         Unit ve regression testleri
+ui/            Tkinter pencere ve bilesenleri
+main.py        Composition root / CLI giris noktasi
+```
+
+## Katki
+
+Katki sureci, commit standardi ve test kurallari icin
+[CONTRIBUTING.md](CONTRIBUTING.md) dosyasini okuyun. Her yeni tool merkezi
+guvenlik registry'sinde acik bir risk sinifina sahip olmalidir.
+
+## Lisans
+
+MIT License. Ayrintilar icin [LICENSE](LICENSE).

@@ -117,21 +117,14 @@ def _extract_message_text(message: dict) -> str:
 
 
 def _strip_html(value: str) -> str:
-    text = re.sub(r"(?is)<script.*?</script>", " ", value or "")
-    text = re.sub(r"(?is)<style.*?</style>", " ", text)
-    text = re.sub(r"(?is)<[^>]+>", " ", text)
-    text = (
-        text.replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-    )
-    return re.sub(r"\s+", " ", text).strip()
+    from actions.html_safety import strip_html as _safe_strip
+
+    return _safe_strip(value)
 
 
 def _summarize_http_error(config: OpenAICompatibleConfig, base_url: str, status_code: int, body: str) -> str:
-    title_match = re.search(r"(?is)<title>(.*?)</title>", body or "")
-    title = _strip_html(title_match.group(1)) if title_match else ""
+    from actions.html_safety import extract_title as _safe_extract_title
+    title = _safe_extract_title(body or "")
     clean_body = _strip_html(body)[:360]
     host = urlparse(base_url.strip()).netloc or base_url.strip()
     provider_name = str(config.provider_name or "OpenAI-compatible")

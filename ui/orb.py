@@ -1,12 +1,14 @@
 import math, random, time, threading
 import psutil
+import tkinter as tk
 from collections import deque
 
+from app_config import load_app_config
 from ui.constants import (
     C_BG, C_PRI, C_ORG, C_ORG2, C_MID, C_DIM, C_DIMMER, C_TEXT,
     C_PANEL, C_GREEN, C_RED, C_MUTED, C_BLUE, C_GOLD, C_WARN,
     ORB_COLORS, STATE_HEX_COLORS, STATE_LABELS_TR,
-    HDR_H, FOOTER_H, CONTROL_H,
+    LEFT_W_T, RIGHT_W_T, HDR_H, FOOTER_H, INPUT_H, CONTROL_H,
     SYSTEM_NAME, MODEL_BADGE,
     font_body, font_body_bold, font_display,
 )
@@ -44,7 +46,7 @@ class OrbMixin:
         if self.muted:
             badges.append(("MUTED", C_MUTED))
         if self.text_mode:
-            badges.append(("TEXT MODE", C_GOLD))
+            badges.append(("MIC OFF / TEXT", C_GOLD))
         if self.ptt_active:
             badges.append(("PTT ACTIVE", C_BLUE))
         if self.wake_ready:
@@ -168,13 +170,13 @@ class OrbMixin:
     def _set_layout_metrics(self, width, height):
         self.W = int(width)
         self.H = int(height)
-        self.LEFT_W = min(LEFT_W_T, int(self.W * 0.23))
-        self.RIGHT_W = min(RIGHT_W_T, int(self.W * 0.25))
+        self.LEFT_W = min(LEFT_W_T, int(self.W * 0.20))
+        self.RIGHT_W = min(RIGHT_W_T, int(self.W * 0.36))
         center_w = self.W - self.LEFT_W - self.RIGHT_W
         orb_area_h = self.H - HDR_H - CONTROL_H - FOOTER_H - 24
         self.FCX = self.LEFT_W + center_w // 2
         self.FCY = HDR_H + orb_area_h // 2 + 6
-        self.FACE = min(int(orb_area_h * 0.90), int(center_w * 0.86), 860)
+        self.FACE = min(int(orb_area_h * 0.58), int(center_w * 0.66), 440)
 
         self.CENTER_X0 = self.LEFT_W
         self.CENTER_X1 = self.W - self.RIGHT_W
@@ -214,7 +216,6 @@ class OrbMixin:
     def _draw_orb(self, c):
         state = "PAUSED" if self.paused else self._jarvis_state
         t    = self.tick
-        speak_pulse = 1.0
         if self.speaking:
             speak_pulse = 1.0 + 0.12 * math.sin(t * 0.23) + 0.05 * math.sin(t * 0.11 + 1.2)
         elif self.user_speaking:
@@ -222,7 +223,7 @@ class OrbMixin:
         elif state in ("THINKING", "RESEARCHING", "WAITING_APPROVAL", "INITIALISING"):
             speak_pulse = 1.0 + 0.03 * math.sin(t * 0.10)
         else:
-            speak_pulse = 1.0 + 0.01 * math.sin(t * 0.07)
+            speak_pulse = 1.0
 
         move_x = 0
         move_y = 0

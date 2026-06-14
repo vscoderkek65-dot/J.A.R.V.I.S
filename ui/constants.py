@@ -6,21 +6,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SYSTEM_NAME = "J.A.R.V.I.S"
 MODEL_BADGE = f"VOICE CORE \u2502 {platform.system() or 'Desktop'}"
 
-C_BG      = "#020c0c"
-C_PRI     = "#00d4c0"
-C_ORG     = "#ff6600"
-C_ORG2    = "#ff9900"
-C_MID     = "#006a62"
-C_DIM     = "#0a2a28"
-C_DIMMER  = "#061414"
-C_TEXT    = "#7dfff6"
-C_PANEL   = "#030f0f"
-C_GREEN   = "#00ff88"
-C_RED     = "#ff3344"
-C_MUTED   = "#cc2255"
-C_BLUE    = "#4488ff"
-C_GOLD    = "#ffcc00"
-C_WARN    = "#ff9900"
+C_BG      = "#080b10"
+C_PRI     = "#5eead4"
+C_ORG     = "#f97316"
+C_ORG2    = "#f59e0b"
+C_MID     = "#355261"
+C_DIM     = "#1c2a33"
+C_DIMMER  = "#111820"
+C_TEXT    = "#e5eef5"
+C_PANEL   = "#101720"
+C_GREEN   = "#34d399"
+C_RED     = "#fb4b5b"
+C_MUTED   = "#d94670"
+C_BLUE    = "#60a5fa"
+C_GOLD    = "#fbbf24"
+C_WARN    = "#f59e0b"
 
 ORB_COLORS = {
     "LISTENING":    (0, 255, 136),
@@ -34,10 +34,10 @@ ORB_COLORS = {
     "INITIALISING": (255, 51, 68),
 }
 
-W_TARGET = 2200
-H_TARGET = 1320
-LEFT_W_T = 360
-RIGHT_W_T = 410
+W_TARGET = 1680
+H_TARGET = 1050
+LEFT_W_T = 270
+RIGHT_W_T = 500
 HDR_H    = 72
 FOOTER_H = 26
 INPUT_H  = 34
