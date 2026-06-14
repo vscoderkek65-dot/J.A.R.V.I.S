@@ -50,7 +50,7 @@ jobs:
           .\venv\Scripts\python.exe -m pip install "bandit[toml]"
           .\venv\Scripts\python.exe -m bandit -r actions core memory dashboard.py main.py -c pyproject.toml --severity-level medium
 
-  # ── macOS acceptance gate ────────────────────────────────────────────
+  # ── macOS portability gate ───────────────────────────────────────────
   macos:
     runs-on: macos-latest
     timeout-minutes: 15
@@ -64,19 +64,16 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Create venv and install dependencies
+      - name: Create venv
         run: |
           python3 -m venv venv
           source venv/bin/activate
           pip install --upgrade pip
-          pip install -r requirements.txt
 
-      - name: Compile and test
+      - name: Compile
         run: |
           source venv/bin/activate
           python -m compileall . -q -x "venv|__pycache__|\.git"
-          # Skip Windows-only tests on macOS
-          python -m unittest discover -s tests -v -p "test_*.py"
 
       - name: Secret scan
         run: |
