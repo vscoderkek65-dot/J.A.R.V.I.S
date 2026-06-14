@@ -531,7 +531,11 @@ class JarvisLive:
                 })
                 self.ui.write_debug(f"Hafiza ogrenildi: #{item.get('id')} {item.get('title')}", level="INFO")
         except Exception as exc:
-            self.trace.log_event(run_id, "auto_memory_failed", {"error": str(exc)})
+            self.trace.log_event(
+                run_id,
+                "auto_memory_failed",
+                {"error_type": type(exc).__name__, "error": safe_log_preview(exc, limit=160, redact_content_keys=True)},
+            )
 
     def _speech_excerpt(self, text: str, limit: int = 700) -> str:
         clean = str(text or "").strip()
@@ -1605,7 +1609,7 @@ class JarvisLive:
                 risk_class=policy.risk_class,
                 args=args,
                 summary=policy.summary(args),
-                result=str(result),
+                result=safe_log_preview(result, limit=300, redact_content_keys=True),
                 status="failed" if (had_exception or tool_failed) else "executed",
             )
         if tool_failed:
@@ -2026,12 +2030,14 @@ class JarvisLive:
                     for child in group.exceptions:
                         collect(child)
                 else:
-                    leaves.append(f"{type(group).__name__}: {str(group).replace(chr(10), ' ')[:180]}")
+                    leaves.append(
+                        f"{type(group).__name__}: "
+                        f"{safe_log_preview(group, limit=180, redact_content_keys=True).replace(chr(10), ' ')}"
+                    )
 
             collect(exc)
             return " | ".join(leaves[:3]) or f"{type(exc).__name__}: TaskGroup hatasi"
-        message = str(exc)
-        snippet = message.replace("\n", " ")[:220]
+        snippet = safe_log_preview(exc, limit=220, redact_content_keys=True).replace("\n", " ")
         return f"{type(exc).__name__}: {snippet}"
 
 

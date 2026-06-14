@@ -67,7 +67,13 @@ def _normalize_url(url: str) -> str:
 def _host_matches(host: str, domain: str) -> bool:
     host = str(host or "").strip().casefold().rstrip(".")
     domain = str(domain or "").strip().casefold().rstrip(".")
-    return bool(host and domain and (host == domain or host.endswith("." + domain)))
+    if not host or not domain:
+        return False
+    host_parts = host.split(".")
+    domain_parts = domain.split(".")
+    return host_parts == domain_parts or (
+        len(host_parts) > len(domain_parts) and host_parts[-len(domain_parts) :] == domain_parts
+    )
 
 
 def _normalize_spaces(value: str) -> str:
@@ -186,7 +192,7 @@ def _capture_failure(page, context, screenshot_path: Path, trace_path: Path, err
             artifacts.append(f"trace={trace_path}")
     except Exception:
         pass
-    detail = f"{type(error).__name__}: {error}" if isinstance(error, Exception) else str(error)
+    detail = f"{type(error).__name__}: browser operation failed" if isinstance(error, Exception) else "browser operation failed"
     if artifacts:
         return f"{detail}\nArtifact: " + ", ".join(artifacts)
     return detail

@@ -51,7 +51,7 @@ def _is_safe_url(url: str) -> bool:
     """Validate a URL is safe for external requests (SSRF / open redirect protection)."""
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
-    host = parsed.netloc.lower()
+    host = parsed.hostname or ""
 
     # Must be http or https
     if scheme not in {"http", "https"}:
@@ -62,7 +62,7 @@ def _is_safe_url(url: str) -> bool:
         return False
 
     # Strip port and credentials for host check
-    host_clean = host.split(":")[0].split("@")[-1] if "@" in host else host.split(":")[0]
+    host_clean = host.casefold().rstrip(".")
 
     # Block private / loopback IPs
     if host_clean and host_clean[0].isdigit():
@@ -86,7 +86,13 @@ def _is_external_redirect_url(url: str, search_engine_host: str) -> bool:
 def _host_matches(host: str, domain: str) -> bool:
     host = str(host or "").strip().casefold().rstrip(".")
     domain = str(domain or "").strip().casefold().rstrip(".")
-    return bool(host and domain and (host == domain or host.endswith("." + domain)))
+    if not host or not domain:
+        return False
+    host_parts = host.split(".")
+    domain_parts = domain.split(".")
+    return host_parts == domain_parts or (
+        len(host_parts) > len(domain_parts) and host_parts[-len(domain_parts) :] == domain_parts
+    )
 
 
 def _host_matches_any(host: str, domains: set[str] | tuple[str, ...]) -> bool:
@@ -195,7 +201,7 @@ def _dedupe_links(links: list[tuple[str, str]], limit: int = 40) -> list[tuple[s
 
 
 def _domain_of(url: str) -> str:
-    host = urlparse(url or "").netloc.lower()
+    host = (urlparse(url or "").hostname or "").casefold().rstrip(".")
     return host[4:] if host.startswith("www.") else host
 
 
