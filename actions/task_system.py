@@ -245,17 +245,40 @@ class TaskStore:
         params: list[object] = []
         where = ""
         if status_filter == "active":
-            marks = ",".join("?" for _ in ACTIVE_STATUSES)
-            where = f"WHERE status IN ({marks})"
-            params.extend(sorted(ACTIVE_STATUSES))
+            where = "active"
         elif status_filter in TASK_STATUSES:
             where = "WHERE status = ?"
             params.append(status_filter)
         with self._lock, self._connection() as conn:
-            rows = conn.execute(
-                f"SELECT * FROM tasks {where} ORDER BY COALESCE(next_run_at, run_at, updated_at) ASC, id DESC LIMIT ?",
-                (*params, limit),
-            ).fetchall()
+            if where == "active":
+                rows = conn.execute(
+                    """
+                    SELECT * FROM tasks
+                    WHERE status IN ('pending', 'running', 'waiting_approval')
+                    ORDER BY COALESCE(next_run_at, run_at, updated_at) ASC, id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            elif where:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM tasks
+                    WHERE status = ?
+                    ORDER BY COALESCE(next_run_at, run_at, updated_at) ASC, id DESC
+                    LIMIT ?
+                    """,
+                    (*params, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM tasks
+                    ORDER BY COALESCE(next_run_at, run_at, updated_at) ASC, id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
             return [_row_to_dict(row) for row in rows]
 
     def due_tasks(self, now: dt.datetime | None = None, limit: int = 10) -> list[dict]:
@@ -291,11 +314,44 @@ class TaskStore:
         }
         clean = {key: value for key, value in fields.items() if key in allowed}
         clean["updated_at"] = _iso()
-        assignments = ", ".join(f"{key} = ?" for key in clean)
+        current = self.get_task(task_id)
+        merged = {key: current.get(key) for key in allowed}
+        merged.update(clean)
         with self._lock, self._connection() as conn:
             conn.execute(
-                f"UPDATE tasks SET {assignments} WHERE id = ?",
-                (*clean.values(), int(task_id)),
+                """
+                UPDATE tasks SET
+                    title = ?,
+                    task_type = ?,
+                    query = ?,
+                    url = ?,
+                    schedule_kind = ?,
+                    interval_minutes = ?,
+                    run_at = ?,
+                    next_run_at = ?,
+                    last_result_hash = ?,
+                    last_summary = ?,
+                    status = ?,
+                    error = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    merged.get("title"),
+                    merged.get("task_type"),
+                    merged.get("query"),
+                    merged.get("url"),
+                    merged.get("schedule_kind"),
+                    merged.get("interval_minutes"),
+                    merged.get("run_at"),
+                    merged.get("next_run_at"),
+                    merged.get("last_result_hash"),
+                    merged.get("last_summary"),
+                    merged.get("status"),
+                    merged.get("error"),
+                    merged.get("updated_at"),
+                    int(task_id),
+                ),
             )
             conn.commit()
         return self.get_task(task_id)

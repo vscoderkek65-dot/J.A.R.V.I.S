@@ -8,7 +8,8 @@ import time
 import unicodedata
 import urllib.parse
 from urllib.parse import parse_qs, urljoin, urlparse
-from xml.etree import ElementTree as ET
+
+from defusedxml import ElementTree as ET
 
 from app_config import get_app_config_value
 from actions.platform_utils import open_url
@@ -42,7 +43,7 @@ PRIVATE_NET_PATTERNS = (
     "127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
     "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
     "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-    "192.168.", "169.254.", "0.0.0.0",
+    "192.168.", "169.254.", "0.0.0.0",  # nosec B104 - blocked SSRF target, not a bind address.
 )
 
 
@@ -70,7 +71,7 @@ def _is_safe_url(url: str) -> bool:
                 return False
 
     # Block localhost variants
-    local_hosts = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+    local_hosts = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}  # nosec B104 - blocked SSRF targets.
     if host_clean in local_hosts or host_clean.startswith("127."):
         return False
 
@@ -576,7 +577,12 @@ class ResearchAgent:
 
         reader_url = "https://r.jina.ai/" + target
         try:
-            response = requests.get(reader_url, headers={"User-Agent": USER_AGENT}, timeout=max(timeout, 20))
+            reader_timeout = float(max(timeout, 20))
+            response = requests.get(
+                reader_url,
+                headers={"User-Agent": USER_AGENT},
+                timeout=reader_timeout,
+            )
             response.raise_for_status()
             text = _strip_html(_strip_reader_metadata(response.text))
             title_match = re.search(r"(?im)^Title:\s*(.+)$", response.text)

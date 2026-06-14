@@ -269,10 +269,25 @@ class MemoryStore:
             where = "WHERE kind = ?"
             params.append(kind)
         with self._connection() as conn:
-            rows = conn.execute(
-                f"SELECT * FROM memory_items {where} ORDER BY updated_at DESC, id DESC LIMIT ?",
-                (*params, limit),
-            ).fetchall()
+            if kind:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM memory_items
+                    WHERE kind = ?
+                    ORDER BY updated_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (*params, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM memory_items
+                    ORDER BY updated_at DESC, id DESC
+                    LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
             return [_row_to_dict(row) for row in rows]
 
     def search(self, query: str, kind: str = "", limit: int = 8) -> list[dict]:
@@ -293,27 +308,69 @@ class MemoryStore:
         params.append(limit * 3)
         with self._connection() as conn:
             try:
-                rows = conn.execute(
-                    f"""
-                    SELECT m.*, bm25(memory_items_fts) AS rank
-                    FROM memory_items_fts
-                    JOIN memory_items m ON m.id = memory_items_fts.rowid
-                    WHERE memory_items_fts MATCH ? {where}
-                    ORDER BY rank ASC
-                    LIMIT ?
-                    """,
-                    tuple(params),
-                ).fetchall()
+                if kind:
+                    rows = conn.execute(
+                        """
+                        SELECT m.*, bm25(memory_items_fts) AS rank
+                        FROM memory_items_fts
+                        JOIN memory_items m ON m.id = memory_items_fts.rowid
+                        WHERE memory_items_fts MATCH ? AND m.kind = ?
+                        ORDER BY rank ASC
+                        LIMIT ?
+                        """,
+                        tuple(params),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """
+                        SELECT m.*, bm25(memory_items_fts) AS rank
+                        FROM memory_items_fts
+                        JOIN memory_items m ON m.id = memory_items_fts.rowid
+                        WHERE memory_items_fts MATCH ?
+                        ORDER BY rank ASC
+                        LIMIT ?
+                        """,
+                        tuple(params),
+                    ).fetchall()
             except sqlite3.Error:
-                like_where = " OR ".join(["title LIKE ? OR content LIKE ? OR tags LIKE ?" for _ in tokens[:6]])
+                search_tokens = tokens[:6]
                 like_params: list[Any] = []
-                for token in tokens[:6]:
+                for token in [*search_tokens, *["__jarvis_no_match__"] * (6 - len(search_tokens))]:
                     like_params.extend([f"%{token}%", f"%{token}%", f"%{token}%"])
-                extra = "AND kind = ?" if kind else ""
-                rows = conn.execute(
-                    f"SELECT * FROM memory_items WHERE ({like_where}) {extra} ORDER BY updated_at DESC LIMIT ?",
-                    (*like_params, *( [kind] if kind else []), limit * 3),
-                ).fetchall()
+                if kind:
+                    rows = conn.execute(
+                        """
+                        SELECT * FROM memory_items
+                        WHERE (
+                            (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                        ) AND kind = ?
+                        ORDER BY updated_at DESC
+                        LIMIT ?
+                        """,
+                        (*like_params, kind, limit * 3),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """
+                        SELECT * FROM memory_items
+                        WHERE (
+                            (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                            OR (title LIKE ? OR content LIKE ? OR tags LIKE ?)
+                        )
+                        ORDER BY updated_at DESC
+                        LIMIT ?
+                        """,
+                        (*like_params, limit * 3),
+                    ).fetchall()
             results = []
             for row in rows:
                 item = _row_to_dict(row)

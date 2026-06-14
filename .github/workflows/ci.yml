@@ -44,6 +44,12 @@ jobs:
           .\venv\Scripts\python.exe -m pip install pip-audit
           .\venv\Scripts\python.exe -m pip_audit -r requirements.txt --ignore-vuln PYSEC-2024-123 --ignore-vuln PYSEC-2025-456
 
+      - name: Static security scan
+        shell: pwsh
+        run: |
+          .\venv\Scripts\python.exe -m pip install "bandit[toml]"
+          .\venv\Scripts\python.exe -m bandit -r actions core memory dashboard.py main.py -c pyproject.toml --severity-level medium
+
   # ── macOS acceptance gate ────────────────────────────────────────────
   macos:
     runs-on: macos-latest
