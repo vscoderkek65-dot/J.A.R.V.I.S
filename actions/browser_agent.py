@@ -64,6 +64,12 @@ def _normalize_url(url: str) -> str:
     return target
 
 
+def _host_matches(host: str, domain: str) -> bool:
+    host = str(host or "").strip().casefold().rstrip(".")
+    domain = str(domain or "").strip().casefold().rstrip(".")
+    return bool(host and domain and (host == domain or host.endswith("." + domain)))
+
+
 def _normalize_spaces(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
@@ -356,7 +362,7 @@ def browser_research(query: str, max_pages: int = 5, visible: bool = False) -> s
         for link in ranked:
             if len(docs) >= max_pages:
                 break
-            if urllib.parse.urlparse(link.href).netloc.lower().endswith("bing.com"):
+            if _host_matches(urllib.parse.urlparse(link.href).hostname or "", "bing.com"):
                 continue
             if _keyword_score(link.text, link.href, query) <= 0 and len(docs) > 0:
                 continue

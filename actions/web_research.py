@@ -80,7 +80,17 @@ def _is_safe_url(url: str) -> bool:
 
 def _is_external_redirect_url(url: str, search_engine_host: str) -> bool:
     """Check if a URL is an external (non-search-engine) link from a redirect wrapper."""
-    return _is_safe_url(url) and search_engine_host not in urlparse(url).netloc.lower()
+    return _is_safe_url(url) and not _host_matches(urlparse(url).hostname or "", search_engine_host)
+
+
+def _host_matches(host: str, domain: str) -> bool:
+    host = str(host or "").strip().casefold().rstrip(".")
+    domain = str(domain or "").strip().casefold().rstrip(".")
+    return bool(host and domain and (host == domain or host.endswith("." + domain)))
+
+
+def _host_matches_any(host: str, domains: set[str] | tuple[str, ...]) -> bool:
+    return any(_host_matches(host, domain) for domain in domains)
 
 
 @dataclass
@@ -171,7 +181,8 @@ def _dedupe_links(links: list[tuple[str, str]], limit: int = 40) -> list[tuple[s
         parsed = urlparse(href)
         if parsed.scheme not in {"http", "https"}:
             continue
-        if any(host in parsed.netloc for host in ("google.", "duckduckgo.com")) and "/url" not in parsed.path:
+        host = parsed.hostname or ""
+        if (_host_matches(host, "google.com") or _host_matches(host, "duckduckgo.com")) and "/url" not in parsed.path:
             continue
         key = href.rstrip("/")
         if key in seen:
@@ -605,12 +616,12 @@ class ResearchAgent:
         results: list[tuple[str, str]] = []
         for label, href in links:
             parsed = urlparse(href)
-            if "duckduckgo.com" in parsed.netloc and parsed.path.startswith("/l/"):
+            if _host_matches(parsed.hostname or "", "duckduckgo.com") and parsed.path.startswith("/l/"):
                 uddg = parse_qs(parsed.query).get("uddg", [""])[0]
                 if uddg:
                     href = urllib.parse.unquote(uddg)
                     parsed = urlparse(href)
-            if parsed.netloc.lower().endswith("duckduckgo.com"):
+            if _host_matches(parsed.hostname or "", "duckduckgo.com"):
                 continue
             if not _is_safe_url(href):
                 continue
@@ -631,8 +642,8 @@ class ResearchAgent:
         blocked_hosts = {"www.bing.com", "bing.com", "login.live.com", "go.microsoft.com", "support.microsoft.com"}
         for label, href in links:
             parsed = urlparse(href)
-            host = parsed.netloc.lower()
-            if host in blocked_hosts or host.endswith(".bing.com"):
+            host = parsed.hostname or ""
+            if host in blocked_hosts or _host_matches(host, "bing.com"):
                 continue
             if parsed.scheme in {"http", "https"} and label:
                 results.append((label, href))
@@ -671,13 +682,14 @@ class ResearchAgent:
         blocked_hosts = {"www.google.com", "google.com", "accounts.google.com", "support.google.com"}
         for label, href in links:
             parsed = urlparse(href)
-            if parsed.netloc.lower() in blocked_hosts and parsed.path == "/url":
+            host = parsed.hostname or ""
+            if host in blocked_hosts and parsed.path == "/url":
                 target = parse_qs(parsed.query).get("q", [""])[0]
                 if target:
                     href = target
                     parsed = urlparse(href)
-            host = parsed.netloc.lower()
-            if host in blocked_hosts or host.endswith(".google.com"):
+                    host = parsed.hostname or ""
+            if host in blocked_hosts or _host_matches(host, "google.com"):
                 continue
             if parsed.scheme in {"http", "https"} and label:
                 results.append((label, href))
@@ -696,8 +708,8 @@ class ResearchAgent:
         results: list[tuple[str, str]] = []
         for label, href in links:
             parsed = urlparse(href)
-            host = parsed.netloc.lower()
-            if host.endswith("yahoo.com") or "." + host.endswith(".yahoo.com"):
+            host = parsed.hostname or ""
+            if _host_matches(host, "yahoo.com"):
                 continue
             if not _is_safe_url(href):
                 continue

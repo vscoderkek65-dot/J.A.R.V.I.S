@@ -222,8 +222,8 @@ async def config() -> JSONResponse:
             else:
                 safe[k] = v
         return JSONResponse(safe)
-    except Exception as e:
-        return JSONResponse({"error": str(e)})
+    except Exception:
+        return JSONResponse({"error": "configuration_unavailable"})
 
 
 # ── Server management ──────────────────────────────────────────────────

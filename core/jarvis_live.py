@@ -1619,7 +1619,7 @@ class JarvisLive:
         if not tool_failed and not waiting_approval and not self.ui.muted:
             self.ui.set_state("LISTENING")
 
-        log.info("tool %s -> %s", name, safe_log_preview(result, limit=300, redact_content_keys=True))
+        log.info("tool %s completed status=%s", name, "failed" if tool_failed else "ok")
         return types.FunctionResponse(
             id=fc.id, name=name, response={"result": result},
         )
